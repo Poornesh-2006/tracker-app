@@ -7,7 +7,7 @@ Private, offline-first health tracker. Blood tests and medical notes are encrypt
 ```
 lif.os/
 ├── mobile/          ← React Native + Expo app (phone)
-├── docs/            ← Design/spec reference documents
+├── docs/            ← INDEX.md, TODO.md, specs/ (PRD, architecture, schema, deployment)
 └── .gitignore
 ```
 
