@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { Card, CardHead, Empty, ListItem, MonthGrid, Row, Screen, Text, monthOf } from '@/components/ui';
+import { Card, CardHead, Empty, ListItem, MonthGrid, Row, Screen, Text, addDot, monthOf } from '@/components/ui';
 import { MetricsSheet } from '@/components/forms/EntrySheets';
 import { ON_PASTEL, ON_PASTEL_MUTED, accent, pastel, space } from '@/constants/theme';
 import { useFocusData } from '@/hooks/useFocusData';
@@ -25,13 +25,9 @@ export default function ReviewScreen() {
 
   const dots = useMemo(() => {
     const out: Record<string, string[]> = {};
-    const add = (d: string, color: string) => {
-      const list = (out[d] ??= []);
-      if (!list.includes(color)) list.push(color);
-    };
-    data?.metrics.forEach((m) => add(m.date, pastel.blush));
-    data?.food.forEach((f) => add(f.date, pastel.peach));
-    data?.workouts.forEach((w) => add(w.date, accent.tangerine));
+    data?.metrics.forEach((m) => addDot(out, m.date, pastel.blush));
+    data?.food.forEach((f) => addDot(out, f.date, pastel.peach));
+    data?.workouts.forEach((w) => addDot(out, w.date, accent.tangerine));
     return out;
   }, [data]);
 

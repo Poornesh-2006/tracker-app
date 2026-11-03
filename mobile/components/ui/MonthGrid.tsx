@@ -9,6 +9,12 @@ import { Text } from './Text';
 
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
+/** Adds a colored dot to a day (deduped), for building MonthGrid `dots`. */
+export function addDot(dots: Record<string, string[]>, date: string, color: string): void {
+  const list = (dots[date] ??= []);
+  if (!list.includes(color)) list.push(color);
+}
+
 /** "YYYY-MM" for the month containing `date`. */
 export const monthOf = (date: string) => date.slice(0, 7);
 
