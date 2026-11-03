@@ -46,7 +46,7 @@ export function ListItem({ title, subtitle, icon, iconTone = 'butter', right, va
   );
   const row =
     onPress || onLongPress ? (
-      <Tap onPress={onPress} onLongPress={onLongPress} scaleTo={0.98} style={[styles.row, { backgroundColor: c.surface }]} accessibilityLabel={title}>
+      <Tap onPress={onPress} onLongPress={onLongPress} longPressLabel="Delete" scaleTo={0.98} style={[styles.row, { backgroundColor: c.surface }]} accessibilityLabel={title}>
         {content}
       </Tap>
     ) : (

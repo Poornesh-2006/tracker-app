@@ -1,0 +1,120 @@
+{
+  "fn": "layoutGraph",
+  "description": "Knowledge graph layout never loses nodes: orphans become top-level, cycles do not loop forever, everything stays inside the canvas.",
+  "cases": [
+    {
+      "name": "empty",
+      "input": [],
+      "expected": {
+        "placed": 0,
+        "inside": true,
+        "depths": []
+      }
+    },
+    {
+      "name": "single topic is centered",
+      "input": [
+        {
+          "id": 1,
+          "parentId": null
+        }
+      ],
+      "expected": {
+        "placed": 1,
+        "inside": true,
+        "depths": [
+          0
+        ]
+      }
+    },
+    {
+      "name": "tree of three levels",
+      "input": [
+        {
+          "id": 1,
+          "parentId": null
+        },
+        {
+          "id": 2,
+          "parentId": 1
+        },
+        {
+          "id": 3,
+          "parentId": 2
+        },
+        {
+          "id": 4,
+          "parentId": null
+        }
+      ],
+      "expected": {
+        "placed": 4,
+        "inside": true,
+        "depths": [
+          0,
+          1,
+          2,
+          0
+        ]
+      }
+    },
+    {
+      "name": "orphan (parent deleted) still shown",
+      "input": [
+        {
+          "id": 1,
+          "parentId": null
+        },
+        {
+          "id": 5,
+          "parentId": 99
+        }
+      ],
+      "expected": {
+        "placed": 2,
+        "inside": true,
+        "depths": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "name": "self-parent treated as top-level",
+      "input": [
+        {
+          "id": 7,
+          "parentId": 7
+        }
+      ],
+      "expected": {
+        "placed": 1,
+        "inside": true,
+        "depths": [
+          0
+        ]
+      }
+    },
+    {
+      "name": "two-node cycle: both still shown (regression: cycles vanished)",
+      "input": [
+        {
+          "id": 1,
+          "parentId": 2
+        },
+        {
+          "id": 2,
+          "parentId": 1
+        }
+      ],
+      "expected": {
+        "placed": 2,
+        "inside": true,
+        "depths": [
+          0,
+          1
+        ]
+      }
+    }
+  ]
+}

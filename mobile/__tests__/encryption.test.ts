@@ -5,7 +5,6 @@ import { all, run } from '@/services/db';
 import { decryptWithKey, deriveKey, encryptionService, encryptWithKey } from '@/services/encryption';
 import { addBloodTest, canDecryptWith, listBloodTests, reencryptAll } from '@/services/blood-test-service';
 import { lockoutDelayMs, useAuthStore } from '@/stores/auth';
-import { useDataStore } from '@/stores/data';
 
 const PW = 'correct horse';
 const KEY = 'ab'.repeat(32);
@@ -183,13 +182,31 @@ describe('change passcode', () => {
 });
 
 describe('auth store', () => {
-  it('lock clears decrypted data from memory', async () => {
+  it('lock makes encrypted data unreadable until unlock', async () => {
     await useAuthStore.getState().setup(PW);
     await addBloodTest({ date: '2026-01-01', testType: 'LDL', unit: 'mg/dL', value: 99 });
-    await useDataStore.getState().reloadBloodTests();
-    expect(useDataStore.getState().bloodTests).toHaveLength(1);
     await useAuthStore.getState().lock();
-    expect(useDataStore.getState().bloodTests).toEqual([]);
+    await expect(listBloodTests()).rejects.toThrow(/locked/);
+    expect(await useAuthStore.getState().unlock(PW)).toBe(true);
+    expect((await listBloodTests())[0].value).toBe(99);
+  });
+
+  it('refuses to set up a new passcode over existing encrypted data (regression: keychain hiccup orphaned lab results)', async () => {
+    await useAuthStore.getState().setup(PW);
+    await addBloodTest({ date: '2026-01-01', testType: 'LDL', unit: 'mg/dL', value: 99 });
+    store.clear(); // keychain lost / unreadable
+    encryptionService.lock();
+    expect(await useAuthStore.getState().setup('another-pass')).toBe(false);
+    expect(useAuthStore.getState().error).toMatch(/already exists/);
+  });
+
+  it('one undecryptable row is flagged instead of breaking the whole list', async () => {
+    await useAuthStore.getState().setup(PW);
+    await addBloodTest({ date: '2026-01-01', testType: 'LDL', unit: 'mg/dL', value: 99 });
+    await run(`INSERT INTO blood_tests (date, test_type, value_enc, unit) VALUES ('2026-01-02', 'X', 'v2:000000000000000000000000:00000000000000000000000000000000:AAAA', '')`);
+    const rows = await listBloodTests();
+    expect(rows.find((r) => r.testType === 'X')?.unreadable).toBe(true);
+    expect(rows.find((r) => r.testType === 'LDL')?.value).toBe(99);
   });
 
   it('resetAll wipes data and passcode', async () => {

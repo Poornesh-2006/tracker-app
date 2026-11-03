@@ -57,7 +57,7 @@ export default function FinanceScreen() {
         <>
           <Segmented options={PERIODS} value={period} onChange={setPeriod} />
           <Card index={0} tone={sum.net >= 0 ? 'sage' : 'peach'}>
-            <CardHead label="Net" icon="scale-balance" tone="sage" />
+            <CardHead label="Net" icon="scale-balance" tone={sum.net >= 0 ? 'sage' : 'peach'} />
             <DotMatrix text={money(sum.net).replace('₹', '')} dot={6} color={ON_PASTEL} offColor="transparent" accessibilityLabel={`Net ${money(sum.net)}`} />
             <Row style={{ marginTop: space.md }}>
               <View style={styles.flex}>

@@ -4,7 +4,7 @@ import Animated, { ZoomIn } from 'react-native-reanimated';
 import Svg, { Line } from 'react-native-svg';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Card, Empty, Field, IconButton, ListItem, Screen, Section, Sheet, Tap, Text, toast } from '@/components/ui';
-import { askDelete } from '@/components/forms/SchemaSheet';
+import { askDelete, attempt } from '@/components/forms/actions';
 import { layoutGraph } from '@/components/brain/graphLayout';
 import { ON_PASTEL, pastel, space, useTheme } from '@/constants/theme';
 import { useAsyncAction } from '@/hooks/useAsyncAction';
@@ -49,8 +49,7 @@ export default function GraphScreen() {
     });
 
   const toggle = async (n: KnowledgeNode) => {
-    await setNodeLearned(n.id, !n.learned);
-    bumpData();
+    if (!(await attempt(() => setNodeLearned(n.id, !n.learned)))) return;
     setSelected({ ...n, learned: !n.learned });
     if (!n.learned) toast(`Learned: ${n.title}`, 'check-decagram');
   };

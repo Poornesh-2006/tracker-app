@@ -1,0 +1,60 @@
+{
+  "description": "Plan: trips and the tasks they create stay consistent.",
+  "scenarios": [
+    {
+      "name": "deleting a trip removes its auto-created task (regression: orphaned \"Travel:\" tasks)",
+      "steps": [
+        {
+          "op": "trip",
+          "as": "t",
+          "d": 0,
+          "from": "Ameerpet",
+          "to": "HITEC City"
+        },
+        {
+          "op": "openTasks",
+          "expect": [
+            "Travel: Ameerpet → HITEC City"
+          ]
+        },
+        {
+          "op": "deleteTrip",
+          "ref": "t"
+        },
+        {
+          "op": "openTasks",
+          "expect": []
+        }
+      ]
+    },
+    {
+      "name": "deleting one trip keeps other trips’ tasks",
+      "steps": [
+        {
+          "op": "trip",
+          "as": "a",
+          "d": 0,
+          "from": "A",
+          "to": "B"
+        },
+        {
+          "op": "trip",
+          "as": "b",
+          "d": 1,
+          "from": "C",
+          "to": "D"
+        },
+        {
+          "op": "deleteTrip",
+          "ref": "a"
+        },
+        {
+          "op": "openTasks",
+          "expect": [
+            "Travel: C → D"
+          ]
+        }
+      ]
+    }
+  ]
+}

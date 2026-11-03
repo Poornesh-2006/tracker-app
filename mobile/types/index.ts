@@ -8,6 +8,8 @@ export interface BloodTest {
   photoUri: string | null;
   source: 'manual' | 'photo' | 'pdf';
   createdAt?: string;
+  /** True when the row couldn't be decrypted with the current key (value is NaN). */
+  unreadable?: boolean;
 }
 
 export interface BloodTestInput {

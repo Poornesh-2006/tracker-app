@@ -7,11 +7,10 @@ import { Button, Card, Empty, IconButton, ListItem, MonthGrid, Row, Screen, Sect
 import { TaskSheet } from '@/components/forms/EntrySheets';
 import { accent, pastel, radii, space, useTheme } from '@/constants/theme';
 import { useFocusData } from '@/hooks/useFocusData';
-import { bumpData } from '@/hooks/useDataVersion';
+import { askDelete, attempt } from '@/components/forms/actions';
 import { deleteTodo, listTodos, setTodoDone } from '@/services/todo-service';
 import { listTripDates, listTripsByDate } from '@/services/travel-service';
 import type { TodoItem } from '@/types';
-import { confirmDestructive } from '@/utils/confirm';
 import { formatDate, todayStr } from '@/utils/dates';
 
 type Mode = 'day' | 'tasks';
@@ -51,15 +50,8 @@ export default function PlanScreen() {
     return out;
   }, [data]);
 
-  const toggle = async (t: TodoItem) => {
-    await setTodoDone(t.id, !t.done);
-    bumpData();
-  };
-  const remove = (t: TodoItem) =>
-    confirmDestructive('Delete task?', `"${t.title}" will be removed.`, async () => {
-      await deleteTodo(t.id);
-      bumpData();
-    });
+  const toggle = (t: TodoItem) => attempt(() => setTodoDone(t.id, !t.done), 'Could not update the task.');
+  const remove = (t: TodoItem) => askDelete(`"${t.title}"`, () => deleteTodo(t.id));
 
   const open = data?.todos.filter((t) => !t.done) ?? [];
   const done = data?.todos.filter((t) => t.done) ?? [];
@@ -71,7 +63,7 @@ export default function PlanScreen() {
         <Tap onPress={() => void toggle(t)} scaleTo={0.8} accessibilityRole="checkbox" accessibilityState={{ checked: t.done }} accessibilityLabel={t.title} style={[styles.check, { borderColor: c.ink, backgroundColor: t.done ? c.ink : 'transparent' }]}>
           {t.done ? <MaterialCommunityIcons name="check" size={16} color={c.onInk} /> : null}
         </Tap>
-        <Tap onLongPress={() => remove(t)} haptics={false} scaleTo={1} style={styles.flex} accessibilityHint="Long-press to delete">
+        <Tap onLongPress={() => remove(t)} longPressLabel="Delete" haptics={false} scaleTo={1} style={styles.flex} accessibilityLabel={t.title} accessibilityHint="Long-press to delete">
           <Text variant="title" numberOfLines={2} style={t.done && { textDecorationLine: 'line-through', opacity: 0.45 }}>
             {t.title}
           </Text>

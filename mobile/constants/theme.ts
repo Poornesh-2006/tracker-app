@@ -59,6 +59,9 @@ export type Palette = typeof light;
 /** Text color on a pastel card: always dark, so pastels read the same in both modes. */
 export const ON_PASTEL = '#141413';
 export const ON_PASTEL_MUTED = 'rgba(20,20,19,0.62)';
+/** Meter track / dimmed bar on a pastel card. */
+export const PASTEL_TRACK = 'rgba(20,20,19,0.12)';
+export const PASTEL_DIM = 'rgba(20,20,19,0.25)';
 
 export const radii = { sm: 12, md: 18, lg: 24, xl: 32, pill: 999 } as const;
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
@@ -74,11 +77,22 @@ export const fonts = {
 /** Height reserved at the bottom of every tab screen for the floating bar. */
 export const TAB_BAR_SPACE = 112;
 
+export interface ToneColors {
+  bg: string;
+  fg: string;
+  muted: string;
+  track: string;
+  hi: string;
+}
+
 export interface Theme {
   dark: boolean;
   c: Palette;
-  /** Background + foreground for a card tone. */
-  tone: (t: Tone) => { bg: string; fg: string; muted: string };
+  /**
+   * Colors for content on a card tone: background, text, muted text, a meter
+   * track, and a highlight that stays visible in light AND dark mode.
+   */
+  tone: (t: Tone) => ToneColors;
 }
 
 function build(isDark: boolean): Theme {
@@ -87,10 +101,15 @@ function build(isDark: boolean): Theme {
     dark: isDark,
     c,
     tone: (t) => {
-      if (t === 'surface') return { bg: c.surface, fg: c.ink, muted: c.muted };
-      if (t === 'ink') return { bg: c.ink, fg: c.onInk, muted: isDark ? 'rgba(20,20,19,0.6)' : 'rgba(243,238,227,0.6)' };
-      if (t === 'accent') return { bg: accent.tangerine, fg: '#FFFFFF', muted: 'rgba(255,255,255,0.75)' };
-      return { bg: pastel[t], fg: ON_PASTEL, muted: ON_PASTEL_MUTED };
+      if (t === 'surface') return { bg: c.surface, fg: c.ink, muted: c.muted, track: c.line, hi: accent.tangerine };
+      if (t === 'ink') {
+        // The ink card inverts in dark mode (cream), so its accents must too.
+        return isDark
+          ? { bg: c.ink, fg: c.onInk, muted: 'rgba(20,20,19,0.6)', track: 'rgba(20,20,19,0.12)', hi: accent.tangerine }
+          : { bg: c.ink, fg: c.onInk, muted: 'rgba(243,238,227,0.6)', track: 'rgba(255,255,255,0.15)', hi: accent.lime };
+      }
+      if (t === 'accent') return { bg: accent.tangerine, fg: '#FFFFFF', muted: 'rgba(255,255,255,0.75)', track: 'rgba(255,255,255,0.25)', hi: '#FFFFFF' };
+      return { bg: pastel[t], fg: ON_PASTEL, muted: ON_PASTEL_MUTED, track: PASTEL_TRACK, hi: ON_PASTEL };
     },
   };
 }

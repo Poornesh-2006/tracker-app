@@ -4,93 +4,370 @@
     {
       "name": "first workout: 50 + First Workout 50, streak 1",
       "steps": [
-        { "op": "addWorkout", "d": 0 },
-        { "op": "rank", "expect": { "totalPoints": 100, "currentStreak": 1, "rankName": "Bronze" } },
-        { "op": "achievements", "expect": ["first-workout"] }
+        {
+          "op": "addWorkout",
+          "d": 0
+        },
+        {
+          "op": "rank",
+          "expect": {
+            "totalPoints": 100,
+            "currentStreak": 1,
+            "rankName": "Bronze"
+          }
+        },
+        {
+          "op": "achievements",
+          "expect": [
+            "first-workout"
+          ]
+        }
       ]
     },
     {
       "name": "backdated workout earns nothing",
       "steps": [
-        { "op": "addWorkout", "d": 3 },
-        { "op": "rank", "expect": { "totalPoints": 0, "currentStreak": 0 } },
-        { "op": "achievements", "expect": [] }
+        {
+          "op": "addWorkout",
+          "d": 3
+        },
+        {
+          "op": "rank",
+          "expect": {
+            "totalPoints": 0,
+            "currentStreak": 0
+          }
+        },
+        {
+          "op": "achievements",
+          "expect": []
+        }
       ]
     },
     {
       "name": "third workout of the day is capped",
       "steps": [
-        { "op": "addWorkout", "d": 0 },
-        { "op": "addWorkout", "d": 0 },
-        { "op": "addWorkout", "d": 0 },
-        { "op": "rank", "expect": { "totalPoints": 150 } }
+        {
+          "op": "addWorkout",
+          "d": 0
+        },
+        {
+          "op": "addWorkout",
+          "d": 0
+        },
+        {
+          "op": "addWorkout",
+          "d": 0
+        },
+        {
+          "op": "rank",
+          "expect": {
+            "totalPoints": 150
+          }
+        }
       ]
     },
     {
       "name": "meal + metrics (metrics once per day, edits don't re-award)",
       "steps": [
-        { "op": "addMeal", "as": "m", "d": 0 },
-        { "op": "updateMeal", "ref": "m", "d": 0, "calories": 10 },
-        { "op": "logMetrics", "d": 0, "fields": { "steps": 100 } },
-        { "op": "logMetrics", "d": 0, "fields": { "steps": 200 } },
-        { "op": "rank", "expect": { "totalPoints": 55 } },
-        { "op": "achievements", "expect": ["first-meal"] }
+        {
+          "op": "addMeal",
+          "as": "m",
+          "d": 0
+        },
+        {
+          "op": "updateMeal",
+          "ref": "m",
+          "d": 0,
+          "calories": 10
+        },
+        {
+          "op": "logMetrics",
+          "d": 0,
+          "fields": {
+            "steps": 100
+          }
+        },
+        {
+          "op": "logMetrics",
+          "d": 0,
+          "fields": {
+            "steps": 200
+          }
+        },
+        {
+          "op": "rank",
+          "expect": {
+            "totalPoints": 55
+          }
+        },
+        {
+          "op": "achievements",
+          "expect": [
+            "first-meal"
+          ]
+        }
       ]
     },
     {
       "name": "Silver multiplier applies (20 x 1.1 = 22)",
       "steps": [
-        { "op": "seedPoints", "d": 1, "points": 1001 },
-        { "op": "award", "reason": "metrics", "d": 0, "expect": { "points": 22, "unlocked": [] } },
-        { "op": "rank", "expect": { "rankName": "Silver", "currentRank": 2 } }
+        {
+          "op": "seedPoints",
+          "d": 1,
+          "points": 1001
+        },
+        {
+          "op": "award",
+          "reason": "metrics",
+          "d": 0,
+          "expect": {
+            "points": 22,
+            "unlocked": []
+          }
+        },
+        {
+          "op": "rank",
+          "expect": {
+            "rankName": "Silver",
+            "currentRank": 2
+          }
+        }
       ]
     },
     {
       "name": "spending in the shop never demotes",
       "steps": [
-        { "op": "seedPoints", "d": 1, "points": 1001 },
-        { "op": "award", "reason": "metrics", "d": 0 },
-        { "op": "purchase", "id": "game-time-30", "expect": { "success": true } },
-        { "op": "award", "reason": "meal", "d": 0 },
-        { "op": "rank", "expect": { "rankName": "Silver", "totalPoints": 809 } }
+        {
+          "op": "seedPoints",
+          "d": 1,
+          "points": 1001
+        },
+        {
+          "op": "award",
+          "reason": "metrics",
+          "d": 0
+        },
+        {
+          "op": "purchase",
+          "id": "game-time-30",
+          "expect": {
+            "success": true
+          }
+        },
+        {
+          "op": "award",
+          "reason": "meal",
+          "d": 0
+        },
+        {
+          "op": "rank",
+          "expect": {
+            "rankName": "Silver",
+            "totalPoints": 809
+          }
+        }
       ]
     },
     {
       "name": "seven-day streak unlocks once",
       "steps": [
-        { "op": "seedPoints", "d": 6, "points": 1 },
-        { "op": "seedPoints", "d": 5, "points": 1 },
-        { "op": "seedPoints", "d": 4, "points": 1 },
-        { "op": "seedPoints", "d": 3, "points": 1 },
-        { "op": "seedPoints", "d": 2, "points": 1 },
-        { "op": "seedPoints", "d": 1, "points": 1 },
-        { "op": "award", "reason": "metrics", "d": 0, "expect": { "points": 170, "unlocked": ["Seven Day Streak"] } },
-        { "op": "award", "reason": "meal", "d": 0, "expect": { "points": 35, "unlocked": ["First Meal"] } },
-        { "op": "rank", "expect": { "currentStreak": 7, "bestStreak": 7 } }
+        {
+          "op": "seedPoints",
+          "d": 6,
+          "points": 1
+        },
+        {
+          "op": "seedPoints",
+          "d": 5,
+          "points": 1
+        },
+        {
+          "op": "seedPoints",
+          "d": 4,
+          "points": 1
+        },
+        {
+          "op": "seedPoints",
+          "d": 3,
+          "points": 1
+        },
+        {
+          "op": "seedPoints",
+          "d": 2,
+          "points": 1
+        },
+        {
+          "op": "seedPoints",
+          "d": 1,
+          "points": 1
+        },
+        {
+          "op": "award",
+          "reason": "metrics",
+          "d": 0,
+          "expect": {
+            "points": 170,
+            "unlocked": [
+              "Seven Day Streak"
+            ]
+          }
+        },
+        {
+          "op": "award",
+          "reason": "meal",
+          "d": 0,
+          "expect": {
+            "points": 35,
+            "unlocked": [
+              "First Meal"
+            ]
+          }
+        },
+        {
+          "op": "rank",
+          "expect": {
+            "currentStreak": 7,
+            "bestStreak": 7
+          }
+        }
       ]
     },
     {
       "name": "a missed day resets the streak",
       "steps": [
-        { "op": "seedPoints", "d": 3, "points": 1 },
-        { "op": "seedPoints", "d": 2, "points": 1 },
-        { "op": "award", "reason": "metrics", "d": 0 },
-        { "op": "rank", "expect": { "currentStreak": 1, "bestStreak": 1 } }
+        {
+          "op": "seedPoints",
+          "d": 3,
+          "points": 1
+        },
+        {
+          "op": "seedPoints",
+          "d": 2,
+          "points": 1
+        },
+        {
+          "op": "award",
+          "reason": "metrics",
+          "d": 0
+        },
+        {
+          "op": "rank",
+          "expect": {
+            "currentStreak": 1,
+            "bestStreak": 1
+          }
+        }
       ]
     },
     {
       "name": "cannot buy without points, and nothing is recorded",
       "steps": [
-        { "op": "purchase", "id": "game-time-30", "expect": { "success": false, "message": "re:enough points" } },
-        { "op": "rank", "expect": { "totalPoints": 0 } }
+        {
+          "op": "purchase",
+          "id": "game-time-30",
+          "expect": {
+            "success": false,
+            "message": "re:enough points"
+          }
+        },
+        {
+          "op": "rank",
+          "expect": {
+            "totalPoints": 0
+          }
+        }
       ]
     },
     {
       "name": "weekly points exclude older activity",
       "steps": [
-        { "op": "seedPoints", "d": 10, "points": 500 },
-        { "op": "award", "reason": "metrics", "d": 0 },
-        { "op": "rank", "expect": { "weeklyPoints": 20, "monthlyPoints": 520 } }
+        {
+          "op": "seedPoints",
+          "d": 10,
+          "points": 500
+        },
+        {
+          "op": "award",
+          "reason": "metrics",
+          "d": 0
+        },
+        {
+          "op": "rank",
+          "expect": {
+            "weeklyPoints": 20,
+            "monthlyPoints": 520
+          }
+        }
+      ]
+    },
+    {
+      "name": "empty check-in is refused and earns nothing (regression: +20 for an empty row)",
+      "steps": [
+        {
+          "op": "logMetrics",
+          "d": 0,
+          "fields": {},
+          "expect": {
+            "throws": "re:Nothing to save"
+          }
+        },
+        {
+          "op": "rank",
+          "expect": {
+            "totalPoints": 0
+          }
+        },
+        {
+          "op": "metrics",
+          "d": 0,
+          "expect": null
+        }
+      ]
+    },
+    {
+      "name": "a week off shows a broken streak and zero weekly points (regression: stats only refreshed on award)",
+      "steps": [
+        {
+          "op": "seedPoints",
+          "d": 10,
+          "points": 50
+        },
+        {
+          "op": "seedPoints",
+          "d": 9,
+          "points": 50
+        },
+        {
+          "op": "seedPoints",
+          "d": 8,
+          "points": 50
+        },
+        {
+          "op": "rank",
+          "expect": {
+            "currentStreak": 0,
+            "weeklyPoints": 0,
+            "monthlyPoints": 150
+          }
+        }
+      ]
+    },
+    {
+      "name": "rank shown matches lifetime points even before any new award",
+      "steps": [
+        {
+          "op": "seedPoints",
+          "d": 3,
+          "points": 3500
+        },
+        {
+          "op": "rank",
+          "expect": {
+            "rankName": "Gold",
+            "currentRank": 3
+          }
+        }
       ]
     }
   ]

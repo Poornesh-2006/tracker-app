@@ -152,7 +152,7 @@ export default function BodyScreen() {
         />
       ) : null}
 
-      <BloodTestSheet open={sheet.open} entry={sheet.entry} onClose={() => setSheet({ open: false, entry: null })} onSaved={reload} />
+      <BloodTestSheet open={sheet.open} entry={sheet.entry} onClose={() => setSheet((s) => ({ ...s, open: false }))} onSaved={reload} />
       <AiSheet
         open={!!explain}
         onClose={() => setExplain(null)}

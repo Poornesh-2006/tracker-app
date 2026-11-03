@@ -3,12 +3,10 @@ import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { pastel, radii, space, ON_PASTEL, ON_PASTEL_MUTED } from '@/constants/theme';
-import { Sheet, Tap, Text, enter, toast, type IconName } from '@/components/ui';
+import { Sheet, Tap, Text, enter, type IconName } from '@/components/ui';
 import { BloodTestSheet, MealSheet, MetricsSheet, TaskSheet, WorkoutSheet } from '@/components/forms/EntrySheets';
-import { addHydration } from '@/services/hydration-service';
-import { bumpData } from '@/hooks/useDataVersion';
+import { logWater } from '@/components/forms/actions';
 import { todayStr } from '@/utils/dates';
-import { errorMessage } from '@/utils/helpers';
 
 type FormKind = 'meal' | 'workout' | 'metrics' | 'blood' | 'task';
 
@@ -38,15 +36,8 @@ export function QuickAdd({ open, onClose }: { open: boolean; onClose: () => void
 
   const pick = async (key: (typeof ACTIONS)[number]['key']) => {
     if (key === 'water250' || key === 'water500') {
-      const ml = key === 'water250' ? 250 : 500;
-      try {
-        await addHydration(todayStr(), ml);
-        bumpData();
-        toast(`+${ml} ml water`, 'cup-water');
-      } catch (e) {
-        toast(errorMessage(e, 'Could not log water.'), 'alert-circle');
-      }
       onClose();
+      await logWater(todayStr(), key === 'water250' ? 250 : 500);
       return;
     }
     pending.current = key;

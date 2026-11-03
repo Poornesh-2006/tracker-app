@@ -45,13 +45,10 @@ function localRemove(key: string): void {
  */
 export const keyValueStore = {
   async getItem(key: string): Promise<string | null> {
-    if (useSecureStore) {
-      try {
-        return await SecureStore.getItemAsync(key);
-      } catch {
-        return localGet(key);
-      }
-    }
+    // Native: let errors surface. Falling back to (non-existent) localStorage
+    // made a keychain hiccup look like "no passcode set", which invited a new
+    // setup that orphaned all encrypted data.
+    if (useSecureStore) return SecureStore.getItemAsync(key);
     return localGet(key);
   },
 

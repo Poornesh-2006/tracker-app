@@ -1,11 +1,12 @@
-import { AppState, Platform } from 'react-native';
+import { AppState } from 'react-native';
 import { create } from 'zustand';
 import { keyValueStore } from '@/services/key-value-store';
 import { encryptionService } from '@/services/encryption';
 import { resetDatabase } from '@/services/database';
-import { canDecryptWith, reencryptAll } from '@/services/blood-test-service';
+import { canDecryptWith, hasBloodTests, reencryptAll } from '@/services/blood-test-service';
+import { useSettingsStore } from '@/stores/settings';
+import { useSupabaseAuthStore } from '@/stores/supabase-auth';
 import { errorMessage } from '@/utils/helpers';
-import { useDataStore } from '@/stores/data';
 
 export type AuthStatus = 'uninitialized' | 'locked' | 'unlocked';
 
@@ -92,6 +93,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       return false;
     }
     try {
+      // Never set up over existing ciphertext: a keychain read failure must not
+      // silently orphan every encrypted lab result.
+      if (await hasBloodTests()) {
+        throw new Error('Encrypted data already exists on this phone. Unlock with your passcode, or reset the app to start over.');
+      }
       await encryptionService.setup(password);
       set({ status: 'unlocked', error: null });
       return true;
@@ -126,7 +132,6 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   lock: async () => {
     encryptionService.lock();
-    useDataStore.getState().clear(); // drop decrypted records from memory
     set({ status: 'locked', error: null });
   },
 
@@ -136,7 +141,15 @@ export const useAuthStore = create<AuthState>((set) => ({
       return false;
     }
     try {
+      // Same brute-force backoff as unlock: this path also checks the current passcode.
+      const wait = (await readAttempts()).until - Date.now();
+      if (wait > 0) {
+        set({ error: `Too many attempts. Try again in ${Math.ceil(wait / 1000)}s.` });
+        return false;
+      }
       const ok = await encryptionService.changePassword(current, next, reencryptAll, canDecryptWith);
+      if (ok) await keyValueStore.removeItem(ATTEMPTS_KEY).catch(() => undefined);
+      else await recordFailure();
       set(ok ? { status: 'unlocked', error: null } : { error: 'Current password is incorrect.' });
       return ok;
     } catch (e) {
@@ -149,7 +162,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     await resetDatabase();
     await encryptionService.reset();
     await keyValueStore.removeItem(ATTEMPTS_KEY).catch(() => undefined);
-    useDataStore.getState().clear();
+    // Fresh start: no account left signed in, settings back to defaults.
+    await useSupabaseAuthStore.getState().signOut().catch(() => undefined);
+    await useSettingsStore.getState().load();
     set({ status: 'uninitialized', bootstrapped: true, error: null });
   },
 
@@ -160,7 +175,8 @@ export const useAuthStore = create<AuthState>((set) => ({
  * Auto-lock: drop the key and decrypted data after AUTO_LOCK_MS in the
  * background. Short trips (share sheet, photo picker, Google sign-in) don't lock.
  */
-if (Platform.OS !== 'web') {
+// Also on web: React Native Web maps tab visibility to AppState.
+{
   let backgroundedAt: number | null = null;
   AppState.addEventListener('change', (state) => {
     if (state === 'background') {

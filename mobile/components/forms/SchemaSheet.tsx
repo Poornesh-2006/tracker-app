@@ -1,65 +1,19 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { Chips, DateField, Field, NumberField, Segmented, Sheet, parseNum, toast, type IconName } from '@/components/ui';
+import { Chips, DateField, Field, NumberField, Segmented, Sheet, toast, type IconName } from '@/components/ui';
 import { useAsyncAction } from '@/hooks/useAsyncAction';
 import { bumpData } from '@/hooks/useDataVersion';
-import { confirmDestructive } from '@/utils/confirm';
 import { todayStr } from '@/utils/dates';
+import { flatten, initialValue, parseValues, type FieldSpec, type FormLayout, type FormValues } from './schema';
 import { ErrorText, FormFooter } from './FormParts';
+
+export { num, text, type FieldSpec, type FormLayout, type FormValues } from './schema';
 
 /**
  * Declarative add-form for simple records (media, skills, marks, money…).
- * Describe fields once; the sheet handles state, trimming, number parsing,
+ * Describe fields once (see ./schema); the sheet handles state, parsing,
  * validation, busy/error, toast and refreshing screens.
  */
-export type FieldSpec =
-  | { key: string; label: string; kind: 'text'; required?: boolean; placeholder?: string; multiline?: boolean; caps?: 'none' | 'sentences' | 'words' }
-  | { key: string; label: string; kind: 'number'; required?: boolean; min?: number; max?: number; integer?: boolean; suffix?: string; placeholder?: string }
-  | { key: string; label: string; kind: 'date'; optional?: boolean }
-  | { key: string; label: string; kind: 'choice'; options: readonly { value: string; label: string }[]; segmented?: boolean };
-
-export type FormValues = Record<string, string | number | null>;
-
-/** Two fields side by side: pass a tuple. */
-export type FormLayout = (FieldSpec | [FieldSpec, FieldSpec])[];
-
-function initialValue(f: FieldSpec): string {
-  if (f.kind === 'date') return f.optional ? '' : todayStr();
-  if (f.kind === 'choice') return f.options[0]?.value ?? '';
-  return '';
-}
-
-function flatten(layout: FormLayout): FieldSpec[] {
-  return layout.flatMap((x) => (Array.isArray(x) ? x : [x]));
-}
-
-/** Validates and converts raw strings; throws a user-facing message on the first problem. */
-export function parseValues(fields: FieldSpec[], raw: Record<string, string>): FormValues {
-  const out: FormValues = {};
-  for (const f of fields) {
-    const v = (raw[f.key] ?? '').trim();
-    if (f.kind === 'number') {
-      const n = parseNum(v);
-      if (n == null) {
-        if (f.required) throw new Error(`${f.label} is required.`);
-        out[f.key] = null;
-        continue;
-      }
-      if (!Number.isFinite(n)) throw new Error(`${f.label} must be a number.`);
-      if (f.integer && !Number.isInteger(n)) throw new Error(`${f.label} must be a whole number.`);
-      if (f.min != null && n < f.min) throw new Error(`${f.label} must be at least ${f.min}.`);
-      if (f.max != null && n > f.max) throw new Error(`${f.label} can’t exceed ${f.max}.`);
-      out[f.key] = n;
-    } else if (f.kind === 'text') {
-      if (!v && f.required) throw new Error(`${f.label} is required.`);
-      out[f.key] = v || null;
-    } else {
-      out[f.key] = v || null;
-    }
-  }
-  return out;
-}
-
 export function SchemaSheet({
   open,
   onClose,
@@ -152,15 +106,5 @@ export function SchemaSheet({
   );
 }
 
-/** Confirm, delete, refresh every screen. Shared by all long-press deletes. */
-export function askDelete(name: string, remove: () => Promise<unknown>): void {
-  confirmDestructive(`Delete ${name}?`, 'This can’t be undone.', async () => {
-    await remove();
-    bumpData();
-    toast('Deleted', 'delete');
-  });
-}
+export { askDelete } from './actions';
 
-/** Typed readers for FormValues. */
-export const text = (v: FormValues, k: string) => (v[k] == null ? null : String(v[k]));
-export const num = (v: FormValues, k: string) => (typeof v[k] === 'number' ? (v[k] as number) : null);

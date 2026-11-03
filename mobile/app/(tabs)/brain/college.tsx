@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { Card, CardHead, Empty, IconButton, ListItem, Meter, Screen, Segmented, Text } from '@/components/ui';
 import { SchemaSheet, askDelete, num, text, type FormLayout } from '@/components/forms/SchemaSheet';
-import { ON_PASTEL, ON_PASTEL_MUTED, space } from '@/constants/theme';
+import { ON_PASTEL, ON_PASTEL_MUTED, space, PASTEL_TRACK } from '@/constants/theme';
 import { useFocusData } from '@/hooks/useFocusData';
 import { addCollegeActivity, deleteCollegeActivity, listCollegeActivities } from '@/services/education-service';
 import type { CollegeActivity } from '@/types';
@@ -48,7 +48,7 @@ export default function CollegeScreen() {
             {Math.round((attended / items.length) * 100)}%
           </Text>
           <View style={{ marginTop: space.sm }}>
-            <Meter progress={attended / items.length} color={ON_PASTEL} track="rgba(20,20,19,0.12)" />
+            <Meter progress={attended / items.length} color={ON_PASTEL} track={PASTEL_TRACK} />
           </View>
           <Text variant="small" color={ON_PASTEL_MUTED} style={{ marginTop: 4 }}>
             {attended < items.length * 0.75 ? 'Below 75% — watch it.' : 'On track.'}

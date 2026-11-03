@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { router, type Href } from 'expo-router';
+import { router, useFocusEffect, type Href } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Bars,
@@ -16,25 +16,26 @@ import {
   Section,
   Tap,
   Text,
-  toast,
 } from '@/components/ui';
 import { MetricsSheet } from '@/components/forms/EntrySheets';
-import { accent, ON_PASTEL, ON_PASTEL_MUTED, pastel, space, useTheme } from '@/constants/theme';
+import { accent, ON_PASTEL, ON_PASTEL_MUTED, pastel, space, useTheme, PASTEL_DIM } from '@/constants/theme';
 import { GOALS, greeting } from '@/constants/goals';
 import { RANKS } from '@/constants/gamification';
 import { computeAlerts } from '@/constants/metrics';
 import { useFocusData } from '@/hooks/useFocusData';
-import { bumpData } from '@/hooks/useDataVersion';
 import { calculateRecoveryScore, checkMetricsAlerts, generateInsights, predictStress } from '@/services/ai-engine';
 import { listBloodTests } from '@/services/blood-test-service';
 import { getUserRank } from '@/services/gamification-service';
-import { addHydration, totalHydrationMl } from '@/services/hydration-service';
+import { totalHydrationMl } from '@/services/hydration-service';
 import { caloriesForDate } from '@/services/meal-service';
 import { listDailyMetricsBetween } from '@/services/metrics-service';
 import { listTodos, setTodoDone } from '@/services/todo-service';
 import { listWorkouts } from '@/services/workout-service';
-import { daysAgo, parseDateStr, todayStr } from '@/utils/dates';
-import { errorMessage } from '@/utils/helpers';
+import { daysAgo, lastNDays, todayStr, weekdayNarrow } from '@/utils/dates';
+import { attempt, logWater } from '@/components/forms/actions';
+import { syncLatest } from '@/services/sync-manager';
+import { useSettingsStore } from '@/stores/settings';
+import { isAccountRequired, useSupabaseAuthStore } from '@/stores/supabase-auth';
 
 async function loadToday() {
   const today = todayStr();
@@ -49,7 +50,7 @@ async function loadToday() {
   ]);
   const byDate = new Map(metrics.map((m) => [m.date, m]));
   const m = byDate.get(today) ?? null;
-  const week = Array.from({ length: 7 }, (_, i) => daysAgo(6 - i));
+  const week = lastNDays(7);
   const todayWorkouts = workouts.filter((w) => w.date === today);
   const recovery = m?.recoveryScore ?? (m ? calculateRecoveryScore({ sleepHours: m.sleepHours, heartRate: m.heartRate, stress: m.stress }) : null);
   const alerts = [...computeAlerts(blood), ...checkMetricsAlerts(metrics)];
@@ -60,10 +61,14 @@ async function loadToday() {
     recovery,
     stress: predictStress(metrics),
     weekSteps: week.map((d) => byDate.get(d)?.steps ?? 0),
-    weekLabels: week.map((d) => parseDateStr(d).toLocaleDateString('en-US', { weekday: 'narrow' })),
+    weekLabels: week.map(weekdayNarrow),
     workoutMin: todayWorkouts.reduce((s, w) => s + (w.durationMin ?? 0), 0),
     burned: todayWorkouts.reduce((s, w) => s + (w.calories ?? 0), 0),
-    openTodos: todos.filter((t) => !t.done).slice(0, 4),
+    // "Up next": overdue and today first, then upcoming by date, undated last.
+    openTodos: todos
+      .filter((t) => !t.done)
+      .sort((a, b) => (a.dueDate ?? '9999') .localeCompare(b.dueDate ?? '9999'))
+      .slice(0, 4),
     openCount: todos.filter((t) => !t.done).length,
     rank,
     insight: generateInsights({ metrics, workouts })[0] ?? null,
@@ -77,20 +82,17 @@ export default function TodayScreen() {
   const [checkIn, setCheckIn] = useState(false);
   const now = new Date();
 
-  const addGlass = async () => {
-    try {
-      await addHydration(todayStr(), GOALS.glassMl);
-      bumpData();
-      toast(`+${GOALS.glassMl} ml water`, 'cup-water');
-    } catch (e) {
-      toast(errorMessage(e, 'Could not log water.'), 'alert-circle');
-    }
-  };
+  const addGlass = () => logWater(todayStr(), GOALS.glassMl);
+  const toggleTodo = (id: number, done: boolean) => attempt(() => setTodoDone(id, done), 'Could not update the task.');
 
-  const toggleTodo = async (id: number, done: boolean) => {
-    await setTodoDone(id, done);
-    bumpData();
-  };
+  // Auto-sync (Settings): push today's entries when Today opens, quietly.
+  const syncEnabled = useSettingsStore((s) => s.syncEnabled);
+  const signedIn = useSupabaseAuthStore((s) => s.status === 'signedIn');
+  useFocusEffect(
+    useCallback(() => {
+      if (syncEnabled && signedIn && isAccountRequired()) void syncLatest().catch(() => undefined);
+    }, [syncEnabled, signedIn]),
+  );
 
   const steps = data?.m?.steps ?? 0;
   const glasses = Math.round((data?.waterMl ?? 0) / GOALS.glassMl);
@@ -193,7 +195,7 @@ export default function TodayScreen() {
       {/* Week */}
       <Card index={5} tone="butter">
         <CardHead label="Steps · last 7 days" icon="chart-bar" tone="butter" />
-        <Bars values={data?.weekSteps ?? Array(7).fill(0)} labels={data?.weekLabels} labelColor={ON_PASTEL_MUTED} color={ON_PASTEL} dim="rgba(20,20,19,0.25)" highlight={6} height={84} barWidth={14} />
+        <Bars values={data?.weekSteps ?? Array(7).fill(0)} labels={data?.weekLabels} labelColor={ON_PASTEL_MUTED} color={ON_PASTEL} dim={PASTEL_DIM} highlight={6} height={84} barWidth={14} />
       </Card>
 
       {data?.alert ? (
@@ -220,7 +222,7 @@ export default function TodayScreen() {
         </Card>
       ) : null}
 
-      <Section title="Today’s tasks" right={<Button label={`All ${data?.openCount ?? 0}`} kind="ghost" small onPress={() => router.push('/(tabs)/plan' as Href)} />} />
+      <Section title="Up next" right={<Button label={`All ${data?.openCount ?? 0}`} kind="ghost" small onPress={() => router.push('/(tabs)/plan' as Href)} />} />
       <Card index={8}>
         {data && data.openTodos.length ? (
           <View style={{ gap: space.md }}>

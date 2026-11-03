@@ -98,8 +98,12 @@ export async function createTrip(input: {
 /** Stops go with the trip via ON DELETE CASCADE. */
 export async function deleteTrip(id: number): Promise<void> {
   await transaction(async () => {
-    await run(`DELETE FROM travel_stops WHERE trip_id = ?`, id); // explicit for the web preview (no FKs)
+    const [trip] = await all<{ date: string; from_name: string; to_name: string }>(`SELECT date, from_name, to_name FROM travel_trips WHERE id = ?`, id);
+    await run(`DELETE FROM travel_stops WHERE trip_id = ?`, id);
     await deleteById('travel_trips', id);
+    await run(`DELETE FROM travel_live WHERE trip_id = ?`, id);
+    // The "Travel: A → B" task createTrip added (only if still open).
+    if (trip) await run(`DELETE FROM todos WHERE title = ? AND due_date = ? AND done = 0`, `Travel: ${trip.from_name} → ${trip.to_name}`, trip.date);
   });
 }
 
@@ -152,14 +156,8 @@ export async function getLiveLocation(): Promise<TravelLive | null> {
   return live ?? null;
 }
 
-const rad = (deg: number) => (deg * Math.PI) / 180;
 
 /** Haversine distance in km */
-export function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const a = Math.sin(rad(lat2 - lat1) / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(rad(lng2 - lng1) / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
 export function googleMapsDirectionsUrl(from: string, to: string): string {
   return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}&travelmode=transit`;
 }

@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: { width: `${100 / 7}%`, alignItems: 'center', paddingVertical: 3 },
   cellText: { width: `${100 / 7}%`, textAlign: 'center' },
-  day: { width: 36, height: 36, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center' },
+  day: { width: '90%', maxWidth: 36, aspectRatio: 1, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center' },
   dots: { flexDirection: 'row', gap: 2, height: 6, marginTop: 2 },
   dot: { width: 5, height: 5, borderRadius: 3 },
 });

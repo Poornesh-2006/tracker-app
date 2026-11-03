@@ -2,15 +2,152 @@
   "fn": "dates",
   "description": "Local-calendar date helpers. Stored dates are local YYYY-MM-DD; parsing must not shift a day through UTC.",
   "cases": [
-    { "name": "toDateStr pads month and day", "input": { "toDateStr": [2026, 0, 5] }, "expected": "2026-01-05" },
-    { "name": "toDateStr end of year", "input": { "toDateStr": [2025, 11, 31] }, "expected": "2025-12-31" },
-    { "name": "parse leap day stays the same day", "input": { "roundTrip": "2028-02-29" }, "expected": "2028-02-29" },
-    { "name": "parse Jan 1 doesn't fall back to Dec 31", "input": { "roundTrip": "2026-01-01" }, "expected": "2026-01-01" },
-    { "name": "parse DST change day (EU/US March)", "input": { "roundTrip": "2026-03-08" }, "expected": "2026-03-08" },
-    { "name": "shortDate strips zeros", "input": { "shortDate": "2026-01-05" }, "expected": "1/5" },
-    { "name": "shortDate two digits", "input": { "shortDate": "2026-12-31" }, "expected": "12/31" },
-    { "name": "daysAgo(0) is today", "input": { "daysAgoIsToday": 0 }, "expected": true },
-    { "name": "daysAgo(1) sorts before today", "input": { "daysAgoBeforeToday": 1 }, "expected": true },
-    { "name": "daysAgo(-1) is tomorrow (after today)", "input": { "daysAgoBeforeToday": -1 }, "expected": false }
+    {
+      "name": "toDateStr pads month and day",
+      "input": {
+        "toDateStr": [
+          2026,
+          0,
+          5
+        ]
+      },
+      "expected": "2026-01-05"
+    },
+    {
+      "name": "toDateStr end of year",
+      "input": {
+        "toDateStr": [
+          2025,
+          11,
+          31
+        ]
+      },
+      "expected": "2025-12-31"
+    },
+    {
+      "name": "parse leap day stays the same day",
+      "input": {
+        "roundTrip": "2028-02-29"
+      },
+      "expected": "2028-02-29"
+    },
+    {
+      "name": "parse Jan 1 doesn't fall back to Dec 31",
+      "input": {
+        "roundTrip": "2026-01-01"
+      },
+      "expected": "2026-01-01"
+    },
+    {
+      "name": "parse DST change day (EU/US March)",
+      "input": {
+        "roundTrip": "2026-03-08"
+      },
+      "expected": "2026-03-08"
+    },
+    {
+      "name": "shortDate strips zeros",
+      "input": {
+        "shortDate": "2026-01-05"
+      },
+      "expected": "1/5"
+    },
+    {
+      "name": "shortDate two digits",
+      "input": {
+        "shortDate": "2026-12-31"
+      },
+      "expected": "12/31"
+    },
+    {
+      "name": "daysAgo(0) is today",
+      "input": {
+        "daysAgoIsToday": 0
+      },
+      "expected": true
+    },
+    {
+      "name": "daysAgo(1) sorts before today",
+      "input": {
+        "daysAgoBeforeToday": 1
+      },
+      "expected": true
+    },
+    {
+      "name": "daysAgo(-1) is tomorrow (after today)",
+      "input": {
+        "daysAgoBeforeToday": -1
+      },
+      "expected": false
+    },
+    {
+      "name": "valid date",
+      "input": {
+        "valid": "2028-02-29"
+      },
+      "expected": true
+    },
+    {
+      "name": "not a leap year",
+      "input": {
+        "valid": "2027-02-29"
+      },
+      "expected": false
+    },
+    {
+      "name": "month 13",
+      "input": {
+        "valid": "2026-13-01"
+      },
+      "expected": false
+    },
+    {
+      "name": "free text",
+      "input": {
+        "valid": "abc"
+      },
+      "expected": false
+    },
+    {
+      "name": "missing zero padding",
+      "input": {
+        "valid": "2026-1-05"
+      },
+      "expected": false
+    },
+    {
+      "name": "addDays across year end",
+      "input": {
+        "addDays": [
+          "2025-12-30",
+          3
+        ]
+      },
+      "expected": "2026-01-02"
+    },
+    {
+      "name": "addDays backwards across March",
+      "input": {
+        "addDays": [
+          "2026-03-01",
+          -1
+        ]
+      },
+      "expected": "2026-02-28"
+    },
+    {
+      "name": "lastNDays ends at end date",
+      "input": {
+        "lastNDays": [
+          3,
+          "2026-01-01"
+        ]
+      },
+      "expected": [
+        "2025-12-30",
+        "2025-12-31",
+        "2026-01-01"
+      ]
+    }
   ]
 }

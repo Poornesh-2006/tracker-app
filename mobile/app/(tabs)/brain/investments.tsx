@@ -38,7 +38,7 @@ export default function InvestmentsScreen() {
     <Screen back eyebrow="Brain" title="Portfolio" subtitle="Prices are what you enter — no live market data." right={<IconButton icon="plus" tone="ink" label="Add holding" onPress={() => setAdding(true)} />}>
       <Segmented options={KINDS} value={kind} onChange={setKind} />
       <Card index={0} tone={p.pnl >= 0 ? 'sage' : 'peach'}>
-        <CardHead label="Current value" icon="chart-line" tone="sage" />
+        <CardHead label="Current value" icon="chart-line" tone={p.pnl >= 0 ? 'sage' : 'peach'} />
         <CountUp value={Math.round(p.value)} variant="display" color={ON_PASTEL} prefix="₹" />
         <Row style={{ marginTop: space.sm }}>
           <View style={styles.flex}>

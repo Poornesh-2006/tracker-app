@@ -101,7 +101,25 @@ export async function getUserRank(userId = LOCAL_USER_ID): Promise<UserRank> {
     rank = await read();
   }
   await seedDefaults(userId);
-  return rank;
+  // Derived stats are computed on read so they never go stale between awards
+  // (a week off must show a broken streak and 0 weekly points).
+  const [weekly, monthly, lifetime, dayRows] = await Promise.all([
+    pointsSince(userId, daysAgo(6)),
+    pointsSince(userId, daysAgo(29)),
+    pointsSince(userId),
+    all<{ ref_date: string }>(`SELECT DISTINCT ref_date FROM points_log WHERE user_id = ?`, userId),
+  ]);
+  const streak = streakEnding(new Set(dayRows.map((r) => r.ref_date)), new Date());
+  const level = rankForPoints(lifetime);
+  return {
+    ...rank,
+    currentRank: level.level,
+    rankName: level.name,
+    weeklyPoints: weekly,
+    monthlyPoints: monthly,
+    currentStreak: streak,
+    bestStreak: Math.max(rank.bestStreak, streak),
+  };
 }
 
 export async function getAchievements(userId = LOCAL_USER_ID): Promise<Achievement[]> {

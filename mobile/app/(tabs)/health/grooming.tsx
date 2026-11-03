@@ -7,7 +7,7 @@ import { Chips, Empty, IconButton, ListItem, Screen, Segmented, Tap, Text, enter
 import { RoutineSheet, WARDROBE_CATEGORIES, WardrobeSheet, confirmDeleteRoutine } from '@/components/forms/GroomingSheets';
 import { ON_PASTEL, ON_PASTEL_MUTED, pastel, radii, space } from '@/constants/theme';
 import { useFocusData } from '@/hooks/useFocusData';
-import { bumpData } from '@/hooks/useDataVersion';
+import { attempt } from '@/components/forms/actions';
 import { listRoutines } from '@/services/grooming-service';
 import { listWardrobe, updateWardrobeItem } from '@/services/wardrobe-service';
 import type { GroomingRoutine, WardrobeCategory, WardrobeItem } from '@/types';
@@ -33,10 +33,7 @@ export default function GroomingScreen() {
   const items = (data?.wardrobe ?? []).filter((w) => category === ALL || w.category === category);
   const routines = (data?.routines ?? []).filter((r) => (tab === 'schedule' ? r.kind === 'schedule' : r.kind !== 'schedule'));
 
-  const toggleFavorite = async (w: WardrobeItem) => {
-    await updateWardrobeItem(w.id, { ...w, favorite: !w.favorite });
-    bumpData();
-  };
+  const toggleFavorite = (w: WardrobeItem) => attempt(() => updateWardrobeItem(w.id, { ...w, favorite: !w.favorite }));
 
   const add = () => (tab === 'wardrobe' ? setItem({ open: true, entry: null }) : setRoutineOpen(true));
 
@@ -98,7 +95,7 @@ export default function GroomingScreen() {
         </View>
       )}
 
-      <WardrobeSheet open={item.open} entry={item.entry} category={category === ALL ? undefined : category} onClose={() => setItem({ open: false, entry: null })} />
+      <WardrobeSheet open={item.open} entry={item.entry} category={category === ALL ? undefined : category} onClose={() => setItem((s) => ({ ...s, open: false }))} />
       <RoutineSheet open={routineOpen} kind={tab === 'schedule' ? 'schedule' : 'skincare'} onClose={() => setRoutineOpen(false)} />
     </Screen>
   );

@@ -36,3 +36,28 @@ export function shortDate(dateStr: string): string {
   const [, m, d] = dateStr.split('-');
   return `${Number(m)}/${Number(d)}`;
 }
+
+/** "YYYY-MM-DD" shifted by n days (local calendar). */
+export function addDays(date: string, n: number): string {
+  const d = parseDateStr(date);
+  d.setDate(d.getDate() + n);
+  return toDateStr(d);
+}
+
+/** The n days ending at `end` (inclusive), oldest first. */
+export function lastNDays(n: number, end: string = todayStr()): string[] {
+  return Array.from({ length: n }, (_, i) => addDays(end, i - (n - 1)));
+}
+
+/** One-letter weekday ("M") for chart labels. */
+export const weekdayNarrow = (date: string) => parseDateStr(date).toLocaleDateString('en-US', { weekday: 'narrow' });
+
+/** Strict local date check: right shape AND a real calendar day (rejects 2026-02-30). */
+export function isValidDateStr(s: string | null | undefined): s is string {
+  return !!s && /^\d{4}-\d{2}-\d{2}$/.test(s) && toDateStr(parseDateStr(s)) === s;
+}
+
+export function assertDate(s: string | null | undefined, label = 'Date'): string {
+  if (!isValidDateStr(s)) throw new Error(`${label} must be a real date (YYYY-MM-DD).`);
+  return s;
+}

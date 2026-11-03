@@ -29,7 +29,13 @@ export async function insert(sql: string, ...params: SqlValue[]): Promise<number
   return (await db.runAsync(sql, ...params)).lastInsertRowId;
 }
 
-export async function deleteById(table: string, id: number | string): Promise<void> {
+/** Tables that may be deleted from by id (table names can't be bound as SQL parameters). */
+export type Table =
+  | 'blood_tests' | 'food_log' | 'workouts' | 'hydration_log' | 'todos' | 'wardrobe_items' | 'grooming_routines'
+  | 'knowledge_nodes' | 'learning_media' | 'skills' | 'education_marks' | 'college_activities'
+  | 'finance_transactions' | 'finance_subscriptions' | 'investments' | 'travel_trips';
+
+export async function deleteById(table: Table, id: number | string): Promise<void> {
   await run(`DELETE FROM ${table} WHERE id = ?`, id);
 }
 

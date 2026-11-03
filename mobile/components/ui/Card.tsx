@@ -42,7 +42,15 @@ export function Card({ tone = 'surface', children, onPress, onLongPress, style, 
       </View>
     );
   if (index == null) return inner;
-  return <Animated.View entering={enter(index)}>{inner}</Animated.View>;
+  // The wrapper is the row child, so it must carry the card's flex sizing. Sizing
+  // lives on a plain View: on web, Reanimated drops inline styles on views that
+  // have an entering animation.
+  const flex = StyleSheet.flatten(style)?.flex;
+  return (
+    <View style={flex != null ? { flex } : undefined}>
+      <Animated.View entering={enter(index)}>{inner}</Animated.View>
+    </View>
+  );
 }
 
 /** Small caption + icon row used at the top of bento cards ("EXERCISE  🏃"). */

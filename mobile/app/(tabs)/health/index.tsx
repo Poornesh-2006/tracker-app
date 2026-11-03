@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { router, type Href } from 'expo-router';
 import { Card, CardHead, CountUp, Meter, Row, Screen, Text } from '@/components/ui';
-import { ON_PASTEL, ON_PASTEL_MUTED, space, useTheme } from '@/constants/theme';
+import { ON_PASTEL, ON_PASTEL_MUTED, space, useTheme, PASTEL_TRACK } from '@/constants/theme';
 import { GOALS } from '@/constants/goals';
 import { summarizeRegions } from '@/constants/body-map';
 import { useFocusData } from '@/hooks/useFocusData';
@@ -69,7 +69,7 @@ export default function HealthHub() {
             kcal today
           </Text>
           <View style={{ marginTop: space.md }}>
-            <Meter progress={(data?.water ?? 0) / GOALS.waterMl} color={ON_PASTEL} track="rgba(20,20,19,0.12)" />
+            <Meter progress={(data?.water ?? 0) / GOALS.waterMl} color={ON_PASTEL} track={PASTEL_TRACK} />
           </View>
           <Text variant="small" color={ON_PASTEL_MUTED} style={{ marginTop: 4 }}>
             {((data?.water ?? 0) / 1000).toFixed(1)} / {GOALS.waterMl / 1000} L water
@@ -82,7 +82,7 @@ export default function HealthHub() {
             active min this week
           </Text>
           <View style={{ marginTop: space.md }}>
-            <Meter progress={(data?.weekMin ?? 0) / GOALS.workoutMinPerWeek} color={ON_PASTEL} track="rgba(20,20,19,0.12)" />
+            <Meter progress={(data?.weekMin ?? 0) / GOALS.workoutMinPerWeek} color={ON_PASTEL} track={PASTEL_TRACK} />
           </View>
           <Text variant="small" color={ON_PASTEL_MUTED} style={{ marginTop: 4 }}>
             {data?.weekSessions ?? 0} sessions · goal {GOALS.workoutMinPerWeek}

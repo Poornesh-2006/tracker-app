@@ -10,7 +10,10 @@ import { calculateWorkoutCalories } from '@/constants/workout-calculations';
 import { computeAlerts } from '@/constants/metrics';
 import { validateNumber, type ValidationKey } from '@/utils/validators';
 import { summarizeFinance } from '@/services/finance-service';
-import { daysAgo, parseDateStr, shortDate, toDateStr, todayStr } from '@/utils/dates';
+import { addDays, daysAgo, isValidDateStr, lastNDays, parseDateStr, shortDate, toDateStr, todayStr } from '@/utils/dates';
+import { parseNum } from '@/utils/helpers';
+import { parseValues } from '@/components/forms/schema';
+import { layoutGraph } from '@/components/brain/graphLayout';
 import { rankForPoints, streakEnding } from '@/services/gamification-service';
 import { lockoutDelayMs } from '@/stores/auth';
 
@@ -32,6 +35,27 @@ const ADAPTERS: Record<string, Adapter> = {
   validateNumber: (i) =>
     validateNumber(i.key as ValidationKey, typeof i.value === 'string' ? Number(i.value) : i.value),
   summarizeFinance: (i) => summarizeFinance(i),
+  // JSON has no NaN: report it as the string "NaN".
+  parseNum: (i) => {
+    const n = parseNum(i);
+    return Number.isNaN(n) ? 'NaN' : n;
+  },
+  parseValues: (i) => {
+    try {
+      return parseValues(i.fields, i.raw);
+    } catch (e) {
+      return { error: (e as Error).message };
+    }
+  },
+  layoutGraph: (nodes) => {
+    const size = 300;
+    const placed = layoutGraph(nodes.map((n: any) => ({ title: String(n.id), learned: false, color: '#000', notes: null, ...n })), size);
+    return {
+      placed: placed.length,
+      inside: placed.every((p) => p.x >= 0 && p.x <= size && p.y >= 0 && p.y <= size),
+      depths: placed.map((p) => p.depth),
+    };
+  },
   gamificationRules: (i) => {
     if ('rank' in i) return rankForPoints(i.rank).name;
     if ('streak' in i) return streakEnding(new Set(i.streak.map((n: number) => daysAgo(n))), new Date());
@@ -41,6 +65,9 @@ const ADAPTERS: Record<string, Adapter> = {
     if (i.toDateStr) return toDateStr(new Date(i.toDateStr[0], i.toDateStr[1], i.toDateStr[2]));
     if (i.roundTrip) return toDateStr(parseDateStr(i.roundTrip));
     if (i.shortDate) return shortDate(i.shortDate);
+    if ('valid' in i) return isValidDateStr(i.valid);
+    if (i.addDays) return addDays(i.addDays[0], i.addDays[1]);
+    if (i.lastNDays) return lastNDays(i.lastNDays[0], i.lastNDays[1]);
     if ('daysAgoIsToday' in i) return daysAgo(i.daysAgoIsToday) === todayStr();
     return daysAgo(i.daysAgoBeforeToday) < todayStr();
   },

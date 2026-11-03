@@ -5,12 +5,17 @@ import type { DailyMetrics, DailyMetricsInput } from '@/types';
 
 const COLS = 'id, date, heart_rate, steps, sleep_hours, stress, weight, recovery_score, notes';
 
+const FIELDS = ['heartRate', 'steps', 'sleepHours', 'stress', 'weight', 'recoveryScore', 'notes'] as const;
+
 /**
- * One row per date. Fields left null keep their stored value.
+ * One row per date. By default fields left null keep their stored value;
+ * with `{ replace: true }` (the check-in form, which prefills everything) the
+ * given values are written as-is, so users can clear a field.
  * Runs in the serialized transaction queue so a double-tap can't race
  * SELECT-then-INSERT into the UNIQUE(date) constraint.
  */
-export async function upsertDailyMetrics(input: DailyMetricsInput): Promise<number> {
+export async function upsertDailyMetrics(input: DailyMetricsInput, opts: { replace?: boolean } = {}): Promise<number> {
+  if (!opts.replace && FIELDS.every((k) => input[k] == null)) throw new Error('Nothing to save — fill at least one field.');
   const values = [
     input.heartRate ?? null,
     input.steps ?? null,
@@ -20,24 +25,26 @@ export async function upsertDailyMetrics(input: DailyMetricsInput): Promise<numb
     input.recoveryScore ?? null,
     input.notes ?? null,
   ];
+  const set = (col: string) => (opts.replace ? '?' : `COALESCE(?, ${col})`);
   let id = 0;
   await transaction(async () => {
     const existing = await first<{ id: number }>(`SELECT id FROM daily_metrics WHERE date = ?`, input.date);
     if (existing) {
       await run(
         `UPDATE daily_metrics SET
-           heart_rate = COALESCE(?, heart_rate),
-           steps = COALESCE(?, steps),
-           sleep_hours = COALESCE(?, sleep_hours),
-           stress = COALESCE(?, stress),
-           weight = COALESCE(?, weight),
-           recovery_score = COALESCE(?, recovery_score),
-           notes = COALESCE(?, notes)
+           heart_rate = ${set('heart_rate')},
+           steps = ${set('steps')},
+           sleep_hours = ${set('sleep_hours')},
+           stress = ${set('stress')},
+           weight = ${set('weight')},
+           recovery_score = ${set('recovery_score')},
+           notes = ${set('notes')}
          WHERE id = ?`,
         ...values,
         existing.id,
       );
       id = existing.id;
+      await enqueueDays('daily_metrics', input.date); // edits must sync too
       return;
     }
     id = await insert(
@@ -48,7 +55,7 @@ export async function upsertDailyMetrics(input: DailyMetricsInput): Promise<numb
     );
     await enqueueDays('daily_metrics', input.date);
   });
-  await awardPointsSafely('metrics', input.date); // outside: transaction() can't nest
+  if (FIELDS.some((k) => input[k] != null)) await awardPointsSafely('metrics', input.date); // outside: transaction() can't nest
   return id;
 }
 

@@ -3,17 +3,17 @@ import { StyleSheet, View } from 'react-native';
 import { Bars, Card, CardHead, CountUp, Empty, IconButton, ListItem, Ring, Row, Screen, Section, Text, Button } from '@/components/ui';
 import { MetricsSheet, WorkoutSheet } from '@/components/forms/EntrySheets';
 import { GOALS } from '@/constants/goals';
-import { ON_PASTEL, ON_PASTEL_MUTED, space, useTheme } from '@/constants/theme';
+import { ON_PASTEL, ON_PASTEL_MUTED, space, useTheme, PASTEL_TRACK, PASTEL_DIM } from '@/constants/theme';
 import { useFocusData } from '@/hooks/useFocusData';
 import { calculateRecoveryScore } from '@/services/ai-engine';
 import { listDailyMetricsBetween } from '@/services/metrics-service';
 import { listWorkouts } from '@/services/workout-service';
 import type { WorkoutEntry } from '@/types';
-import { daysAgo, formatDate, parseDateStr, todayStr } from '@/utils/dates';
+import { formatDate, lastNDays, todayStr, weekdayNarrow } from '@/utils/dates';
 
 async function loadGym() {
   const today = todayStr();
-  const days = Array.from({ length: 7 }, (_, i) => daysAgo(6 - i));
+  const days = lastNDays(7);
   const [workouts, metrics] = await Promise.all([listWorkouts(60), listDailyMetricsBetween(days[0], today)]);
   const week = workouts.filter((w) => w.date >= days[0]);
   const m = metrics.find((x) => x.date === today) ?? null;
@@ -23,7 +23,7 @@ async function loadGym() {
     weekKcal: week.reduce((s, w) => s + (w.calories ?? 0), 0),
     sessions: week.length,
     perDay: days.map((d) => week.filter((w) => w.date === d).reduce((s, w) => s + (w.durationMin ?? 0), 0)),
-    labels: days.map((d) => parseDateStr(d).toLocaleDateString('en-US', { weekday: 'narrow' })),
+    labels: days.map(weekdayNarrow),
     steps: m?.steps ?? null,
     sleep: m?.sleepHours ?? null,
     recovery: m?.recoveryScore ?? (m ? calculateRecoveryScore(m) : null),
@@ -59,14 +59,14 @@ export default function GymScreen() {
               {data?.sessions ?? 0} sessions · {data?.weekKcal ?? 0} kcal burned
             </Text>
           </View>
-          <Ring progress={(data?.weekMin ?? 0) / GOALS.workoutMinPerWeek} color={ON_PASTEL} track="rgba(20,20,19,0.12)" size={80}>
+          <Ring progress={(data?.weekMin ?? 0) / GOALS.workoutMinPerWeek} color={ON_PASTEL} track={PASTEL_TRACK} size={80}>
             <Text variant="label" color={ON_PASTEL} style={{ fontSize: 10 }}>
               {Math.round(((data?.weekMin ?? 0) / GOALS.workoutMinPerWeek) * 100)}%
             </Text>
           </Ring>
         </View>
         <View style={{ marginTop: space.md }}>
-          <Bars values={data?.perDay ?? Array(7).fill(0)} labels={data?.labels} labelColor={ON_PASTEL_MUTED} color={ON_PASTEL} dim="rgba(20,20,19,0.25)" highlight={6} barWidth={14} height={70} />
+          <Bars values={data?.perDay ?? Array(7).fill(0)} labels={data?.labels} labelColor={ON_PASTEL_MUTED} color={ON_PASTEL} dim={PASTEL_DIM} highlight={6} barWidth={14} height={70} />
         </View>
       </Card>
 
@@ -120,7 +120,7 @@ export default function GymScreen() {
         <Empty icon="dumbbell" title="No workouts yet" body="Log your first session to start your streak." action={<Button label="Log workout" small onPress={() => setSheet({ open: true, entry: null })} />} />
       ) : null}
 
-      <WorkoutSheet open={sheet.open} entry={sheet.entry} onClose={() => setSheet({ open: false, entry: null })} />
+      <WorkoutSheet open={sheet.open} entry={sheet.entry} onClose={() => setSheet((s) => ({ ...s, open: false }))} />
       <MetricsSheet open={checkIn} onClose={() => setCheckIn(false)} />
     </Screen>
   );

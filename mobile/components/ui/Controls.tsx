@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { createElement, useEffect, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -12,15 +12,16 @@ import {
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { accent, fonts, radii, space, useTheme } from '@/constants/theme';
-import { formatDate, parseDateStr, toDateStr } from '@/utils/dates';
+import { accent, fonts, ON_PASTEL, radii, space, useTheme } from '@/constants/theme';
+import { addDays, formatDate, isValidDateStr, parseDateStr, toDateStr } from '@/utils/dates';
 import type { IconName } from './Card';
 import { Tap } from './Tap';
 import { Text } from './Text';
 
 /* ----------------------------------------------------------------- Button */
 
-type ButtonKind = 'ink' | 'accent' | 'pink' | 'ghost' | 'danger';
+/** `inverse` = outlined button for use on ink (dark) cards. */
+type ButtonKind = 'ink' | 'accent' | 'pink' | 'ghost' | 'inverse' | 'danger';
 
 export function Button({
   label,
@@ -42,8 +43,8 @@ export function Button({
   small?: boolean;
 }) {
   const { c } = useTheme();
-  const bg = { ink: c.ink, accent: accent.tangerine, pink: accent.pink, ghost: 'transparent', danger: c.danger }[kind];
-  const fg = kind === 'ink' ? c.onInk : kind === 'ghost' ? c.ink : kind === 'pink' ? '#141413' : '#FFFFFF';
+  const bg = { ink: c.ink, accent: accent.tangerine, pink: accent.pink, ghost: 'transparent', inverse: 'transparent', danger: c.danger }[kind];
+  const fg = { ink: c.onInk, ghost: c.ink, inverse: c.onInk, pink: ON_PASTEL, accent: '#FFFFFF', danger: '#FFFFFF' }[kind];
   return (
     <Tap
       onPress={onPress}
@@ -54,6 +55,7 @@ export function Button({
         small && styles.buttonSmall,
         { backgroundColor: bg },
         kind === 'ghost' && { borderWidth: 1.5, borderColor: c.line },
+        kind === 'inverse' && { borderWidth: 1.5, borderColor: c.onInk },
         style,
       ]}>
       {loading ? (
@@ -266,20 +268,29 @@ export function NumberField(props: Omit<Parameters<typeof Field>[0], 'keyboardTy
   return <Field {...props} keyboardType={props.integer ? 'number-pad' : 'decimal-pad'} />;
 }
 
-/** "" -> null, otherwise a finite number or NaN (so validators can flag it). */
-export function parseNum(s: string): number | null {
-  const t = s.trim().replace(',', '.');
-  return t === '' ? null : Number(t);
-}
+export { parseNum } from '@/utils/helpers';
 
 /** Date picker field showing a pretty date; value is local "YYYY-MM-DD". */
 export function DateField({ label, value, onChange }: { label: string; value: string; onChange: (d: string) => void }) {
-  const { c } = useTheme();
+  const { c, dark } = useTheme();
   const [open, setOpen] = useState(false);
 
   if (Platform.OS === 'web') {
+    // A real <input type="date"> on web: free text let "abc" or "2026-13-45" through.
     return (
-      <Field label={label} value={value} onChangeText={onChange} placeholder="YYYY-MM-DD" autoCapitalize="none" />
+      <View style={{ gap: 6 }}>
+        <Text variant="label" muted>
+          {label}
+        </Text>
+        {createElement('input', {
+          type: 'date',
+          value,
+          'aria-label': label,
+          max: '9999-12-31',
+          onChange: (e: { target: { value: string } }) => isValidDateStr(e.target.value) && onChange(e.target.value),
+          style: { minHeight: 52, borderRadius: radii.md, border: `1.5px solid ${c.line}`, padding: '0 16px', fontSize: 16, fontFamily: fonts.bodyMedium, color: c.ink, background: c.surface, colorScheme: dark ? 'dark' : 'light' },
+        })}
+      </View>
     );
   }
   return (
@@ -411,14 +422,10 @@ const styles = StyleSheet.create({
 /** ‹ Today › day navigator. Can't go past today. */
 export function DayStepper({ date, onChange }: { date: string; onChange: (d: string) => void }) {
   const { c } = useTheme();
-  const shift = (n: number) => {
-    const d = parseDateStr(date);
-    d.setDate(d.getDate() + n);
-    onChange(toDateStr(d));
-  };
+  const shift = (n: number) => onChange(addDays(date, n));
   const today = toDateStr(new Date());
   const isToday = date >= today;
-  const label = isToday ? 'Today' : date === shiftStr(today, -1) ? 'Yesterday' : formatDate(date);
+  const label = isToday ? 'Today' : date === addDays(today, -1) ? 'Yesterday' : formatDate(date);
   return (
     <View style={[styles.stepper, { backgroundColor: c.surface }]}>
       <IconButton icon="chevron-left" label="Previous day" onPress={() => shift(-1)} tone="clear" size={40} />
@@ -428,10 +435,4 @@ export function DayStepper({ date, onChange }: { date: string; onChange: (d: str
       {isToday ? <View style={{ width: 40 }} /> : <IconButton icon="chevron-right" label="Next day" onPress={() => shift(1)} tone="clear" size={40} />}
     </View>
   );
-}
-
-function shiftStr(date: string, n: number): string {
-  const d = parseDateStr(date);
-  d.setDate(d.getDate() + n);
-  return toDateStr(d);
 }

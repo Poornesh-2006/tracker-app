@@ -1,0 +1,71 @@
+{
+  "fn": "parseNum",
+  "description": "Typed numbers: decimal comma vs thousands separators, blanks, junk (regression: \"1,500\" was saved as 1.5).",
+  "cases": [
+    {
+      "name": "blank is null",
+      "input": "",
+      "expected": null
+    },
+    {
+      "name": "spaces only is null",
+      "input": "   ",
+      "expected": null
+    },
+    {
+      "name": "plain integer",
+      "input": "42",
+      "expected": 42
+    },
+    {
+      "name": "decimal point",
+      "input": "7.5",
+      "expected": 7.5
+    },
+    {
+      "name": "decimal comma",
+      "input": "7,5",
+      "expected": 7.5
+    },
+    {
+      "name": "two-digit decimal comma",
+      "input": "12,25",
+      "expected": 12.25
+    },
+    {
+      "name": "US thousands",
+      "input": "1,500",
+      "expected": 1500
+    },
+    {
+      "name": "Indian lakh grouping",
+      "input": "1,23,456",
+      "expected": 123456
+    },
+    {
+      "name": "thousands with decimals",
+      "input": "2,500.75",
+      "expected": 2500.75
+    },
+    {
+      "name": "inner spaces ignored",
+      "input": " 10 000 ",
+      "expected": 10000
+    },
+    {
+      "name": "negative",
+      "input": "-3",
+      "expected": -3
+    },
+    {
+      "name": "junk is NaN",
+      "input": "abc",
+      "expected": "NaN"
+    },
+    {
+      "name": "lone comma is NaN",
+      "input": ",",
+      "expected": "NaN"
+    }
+  ]
+}

@@ -5,8 +5,8 @@ import { bumpData } from '@/hooks/useDataVersion';
 import { addRoutine, deleteRoutine } from '@/services/grooming-service';
 import { addWardrobeItem, deleteWardrobeItem, updateWardrobeItem } from '@/services/wardrobe-service';
 import type { GroomingRoutine, WardrobeCategory, WardrobeItem } from '@/types';
-import { confirmDestructive } from '@/utils/confirm';
 import { ErrorText, FormFooter, PhotoField } from './FormParts';
+import { askDelete } from './actions';
 
 export const WARDROBE_CATEGORIES: { value: WardrobeCategory; label: string }[] = [
   { value: 'tops', label: 'Tops' },
@@ -43,15 +43,7 @@ export function WardrobeSheet({ open, onClose, entry, category }: { open: boolea
       onClose();
     });
 
-  const remove = () =>
-    entry &&
-    confirmDestructive('Remove item?', `"${entry.name}" will be removed from your wardrobe.`, () =>
-      run(async () => {
-        await deleteWardrobeItem(entry.id);
-        bumpData();
-        onClose();
-      }),
-    );
+  const remove = () => entry && askDelete(`"${entry.name}"`, () => deleteWardrobeItem(entry.id), onClose);
 
   return (
     <Sheet open={open} onClose={onClose} title={entry ? 'Edit item' : 'Add to wardrobe'} footer={<FormFooter editing={!!entry} saveLabel="Add item" onSave={save} onDelete={remove} busy={busy} />}>
@@ -105,8 +97,4 @@ export function RoutineSheet({ open, onClose, kind }: { open: boolean; onClose: 
 }
 
 /** Long-press delete for routines (they have no edit form). */
-export const confirmDeleteRoutine = (r: GroomingRoutine) =>
-  confirmDestructive('Delete routine?', `"${r.title}" will be removed.`, async () => {
-    await deleteRoutine(r.id);
-    bumpData();
-  });
+export const confirmDeleteRoutine = (r: GroomingRoutine) => askDelete(`"${r.title}"`, () => deleteRoutine(r.id));

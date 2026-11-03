@@ -17,7 +17,9 @@ import { encryptionService } from '@/services/encryption';
 import { addBloodTest, canDecryptWith, listBloodTests, reencryptAll } from '@/services/blood-test-service';
 import { addFoodLog, deleteFoodLog, updateFoodLog } from '@/services/meal-service';
 import { addWorkout, deleteWorkout, updateWorkout } from '@/services/workout-service';
-import { upsertDailyMetrics } from '@/services/metrics-service';
+import { getDailyMetrics, upsertDailyMetrics } from '@/services/metrics-service';
+import { createTrip, deleteTrip } from '@/services/travel-service';
+import { listTodos } from '@/services/todo-service';
 import { flushQueue, queueLength, syncAll, syncLatest } from '@/services/sync-manager';
 import { awardPoints, getAchievements, getUserRank, purchaseReward } from '@/services/gamification-service';
 import { useAuthStore } from '@/stores/auth';
@@ -103,7 +105,17 @@ const OPS: Record<string, Handler> = {
   },
   updateWorkout: (s, ctx) => updateWorkout(ctx.refs[s.ref], workout(s)),
   deleteWorkout: (s, ctx) => deleteWorkout(ctx.refs[s.ref]),
-  logMetrics: (s) => upsertDailyMetrics({ date: date(s), ...(s.fields ?? {}) }),
+  logMetrics: (s) => outcome(upsertDailyMetrics({ date: date(s), ...(s.fields ?? {}) }, { replace: !!s.replace })),
+  metrics: async (s) => (await getDailyMetrics(date(s))) ?? null,
+
+  // --- plan
+  trip: async (s, ctx) => {
+    const id = await createTrip({ date: date(s), title: `${s.from} → ${s.to}`, fromName: s.from, toName: s.to, stops: [{ name: s.from }, { name: s.to }] });
+    if (s.as) ctx.refs[s.as] = id;
+    return id;
+  },
+  deleteTrip: (s, ctx) => deleteTrip(ctx.refs[s.ref]),
+  openTasks: async () => (await listTodos()).filter((x) => !x.done).map((x) => x.title),
 
   // --- sync
   user: async (s) => {

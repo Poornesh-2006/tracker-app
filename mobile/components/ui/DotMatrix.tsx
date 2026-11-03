@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { View } from 'react-native';
 import Animated, { ZoomIn } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
@@ -62,10 +62,21 @@ interface Props {
   offColor?: string;
   animate?: boolean;
   accessibilityLabel?: string;
+  /** Row alignment when there's spare width. */
+  align?: 'flex-start' | 'center';
+}
+
+const STEP = 1.38;
+const GAP = 1.1;
+
+/** Natural width of a string at a given dot size. */
+function naturalWidth(chars: string[], dot: number): number {
+  const cols = chars.reduce((s, ch) => s + (GLYPHS[ch] ?? FALLBACK)[0].length, 0);
+  return cols * dot * STEP + Math.max(0, chars.length - 1) * dot * GAP;
 }
 
 const Glyph = memo(function Glyph({ rows, dot, color, off }: { rows: string[]; dot: number; color: string; off: string }) {
-  const step = dot * 1.38;
+  const step = dot * STEP;
   const w = rows[0].length;
   return (
     <Svg width={w * step} height={7 * step}>
@@ -89,17 +100,24 @@ const Glyph = memo(function Glyph({ rows, dot, color, off }: { rows: string[]; d
  * a stagger; glyphs are keyed by position+char so only changed digits
  * re-animate when the value updates.
  */
-export function DotMatrix({ text, dot = 6, color, offColor, animate = true, accessibilityLabel }: Props) {
+export function DotMatrix({ text, dot: maxDot = 6, color, offColor, animate = true, accessibilityLabel, align = 'flex-start' }: Props) {
   const { c, dark } = useTheme();
+  const [avail, setAvail] = useState(0);
   const on = color ?? c.ink;
   const off = offColor ?? (dark ? 'rgba(243,238,227,0.07)' : 'rgba(20,20,19,0.06)');
   const chars = text.toUpperCase().split('');
+  // Auto-fit: never wider than the parent gives us.
+  const natural = naturalWidth(chars, maxDot);
+  const dot = avail > 0 && natural > avail ? Math.max(2, (maxDot * avail) / natural) : maxDot;
   return (
     <View
-      style={{ flexDirection: 'row', gap: dot * 1.1 }}
+      onLayout={(e) => setAvail(e.nativeEvent.layout.width)}
+      style={{ alignSelf: 'stretch', alignItems: align, minHeight: 7 * dot * STEP }}
       accessible
       accessibilityRole="text"
       accessibilityLabel={accessibilityLabel ?? text}>
+      {avail === 0 ? null : (
+      <View style={{ flexDirection: 'row', gap: dot * GAP }}>
       {chars.map((ch, i) => {
         const glyph = <Glyph rows={GLYPHS[ch] ?? FALLBACK} dot={dot} color={on} off={off} />;
         return animate ? (
@@ -110,6 +128,8 @@ export function DotMatrix({ text, dot = 6, color, offColor, animate = true, acce
           <View key={`${i}-${ch}`}>{glyph}</View>
         );
       })}
+      </View>
+      )}
     </View>
   );
 }

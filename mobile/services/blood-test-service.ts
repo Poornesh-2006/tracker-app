@@ -16,17 +16,26 @@ interface Row {
 }
 
 function toBloodTest(row: Row): BloodTest {
-  return {
+  const base = {
     id: row.id,
     date: row.date,
     testType: row.test_type,
-    value: Number(encryptionService.decrypt(row.value_enc)),
     unit: row.unit,
-    notes: row.notes_enc ? encryptionService.decrypt(row.notes_enc) : null,
     photoUri: row.photo_uri,
     source: row.source as BloodTest['source'],
     createdAt: row.created_at,
   };
+  if (!encryptionService.isUnlocked()) throw new Error('App is locked.');
+  try {
+    return {
+      ...base,
+      value: Number(encryptionService.decrypt(row.value_enc)),
+      notes: row.notes_enc ? encryptionService.decrypt(row.notes_enc) : null,
+    };
+  } catch {
+    // One bad row (tampered / foreign key) must not hide every other result.
+    return { ...base, value: Number.NaN, notes: null, unreadable: true };
+  }
 }
 
 const params = (i: BloodTestInput) =>
@@ -67,6 +76,11 @@ export async function updateBloodTest(id: number, input: BloodTestInput): Promis
 }
 
 export const deleteBloodTest = (id: number) => deleteById('blood_tests', id);
+
+export async function hasBloodTests(): Promise<boolean> {
+  const [row] = await all<{ n: number }>(`SELECT COUNT(*) AS n FROM blood_tests`);
+  return (row?.n ?? 0) > 0;
+}
 
 /** True if `keyHex` decrypts the stored data (or there is none). Used to recover an interrupted passcode change. */
 export async function canDecryptWith(keyHex: string): Promise<boolean> {

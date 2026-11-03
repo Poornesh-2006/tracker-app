@@ -5,7 +5,8 @@ import { SchemaSheet, askDelete, text, type FormLayout } from '@/components/form
 import { openLink } from '@/utils/links';
 import { space } from '@/constants/theme';
 import { useFocusData } from '@/hooks/useFocusData';
-import { bumpData } from '@/hooks/useDataVersion';
+import { attempt } from '@/components/forms/actions';
+import { confirmDestructive } from '@/utils/confirm';
 import { addMedia, deleteMedia, listMedia, setMediaStatus } from '@/services/media-service';
 import type { LearningMedia } from '@/types';
 
@@ -36,10 +37,12 @@ export default function MediaScreen() {
 
   const items = (data ?? []).filter((m) => kind === 'all' || m.kind === kind);
 
-  const advance = async (m: LearningMedia) => {
-    await setMediaStatus(m.id, NEXT[m.status]);
-    bumpData();
-    toast(`${m.title}: ${LABEL[NEXT[m.status]]}`, ICON[m.kind]);
+  const advance = (m: LearningMedia) => {
+    const go = async () => {
+      if (await attempt(() => setMediaStatus(m.id, NEXT[m.status]))) toast(`${m.title}: ${LABEL[NEXT[m.status]]}`, ICON[m.kind]);
+    };
+    if (m.status === 'done') confirmDestructive('Move back to Up next?', `"${m.title}" is marked done.`, () => void go(), 'Move back');
+    else void go();
   };
 
   return (
@@ -55,7 +58,7 @@ export default function MediaScreen() {
             title={m.title}
             subtitle={[m.creator, LABEL[m.status]].filter(Boolean).join(' · ')}
             done={m.status === 'done'}
-            onPress={() => void advance(m)}
+            onPress={() => advance(m)}
             onLongPress={() => askDelete(`"${m.title}"`, () => deleteMedia(m.id))}
             right={m.url ? <IconButton icon="open-in-new" label="Open link" tone="clear" size={36} onPress={() => void openLink(m.url!).then((ok) => ok || toast('Couldn’t open that link', 'alert-circle'))} /> : undefined}
           />

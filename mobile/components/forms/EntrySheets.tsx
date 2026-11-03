@@ -5,6 +5,7 @@ import { MEAL_TYPES, TEST_TYPES, getTestTypeDef } from '@/constants/metrics';
 import { WORKOUT_TYPES, calculateWorkoutCalories } from '@/constants/workout-calculations';
 import { useAsyncAction } from '@/hooks/useAsyncAction';
 import { ErrorText, FormFooter, PhotoField } from './FormParts';
+import { askDelete } from './actions';
 import { bumpData } from '@/hooks/useDataVersion';
 import { addFoodLog, deleteFoodLog, updateFoodLog } from '@/services/meal-service';
 import { addWorkout, deleteWorkout, updateWorkout } from '@/services/workout-service';
@@ -12,8 +13,7 @@ import { getDailyMetrics, upsertDailyMetrics } from '@/services/metrics-service'
 import { addBloodTest, deleteBloodTest, updateBloodTest } from '@/services/blood-test-service';
 import { addTodo } from '@/services/todo-service';
 import type { BloodTest, FoodLogEntry, MealType, WorkoutEntry } from '@/types';
-import { confirmDestructive } from '@/utils/confirm';
-import { todayStr } from '@/utils/dates';
+import { assertDate, isValidDateStr, todayStr } from '@/utils/dates';
 import { validateNumber, type ValidationKey } from '@/utils/validators';
 
 interface BaseProps {
@@ -65,7 +65,7 @@ export function MealSheet({ open, onClose, onSaved, date, entry }: BaseProps & {
       if (!form.name.trim()) throw new Error('Give the meal a name.');
       const bad = firstError([['calories', nums.calories], ['protein', nums.protein], ['carbs', nums.carbs], ['fat', nums.fat]]);
       if (bad) throw new Error(bad);
-      const input = { date: form.date, mealType: form.mealType, name: form.name.trim(), ...nums };
+      const input = { date: assertDate(form.date), mealType: form.mealType, name: form.name.trim(), ...nums };
       if (entry) await updateFoodLog(entry.id, input);
       else await addFoodLog(input);
       toast(entry ? 'Meal updated' : 'Meal logged', 'food-apple');
@@ -75,14 +75,10 @@ export function MealSheet({ open, onClose, onSaved, date, entry }: BaseProps & {
 
   const remove = () =>
     entry &&
-    confirmDestructive('Delete meal?', `"${entry.name}" will be removed.`, () =>
-      run(async () => {
-        await deleteFoodLog(entry.id);
-        toast('Meal deleted', 'delete');
-        saved(onSaved);
-        onClose();
-      }),
-    );
+    askDelete('this entry', () => deleteFoodLog(entry.id), () => {
+      onSaved?.();
+      onClose();
+    });
 
   return (
     <Sheet
@@ -146,7 +142,7 @@ export function WorkoutSheet({ open, onClose, onSaved, date, entry }: BaseProps 
       if (!form.name.trim()) throw new Error('Pick or type a workout.');
       const bad = firstError([['durationMin', duration], ['calories', calories]]);
       if (bad) throw new Error(bad);
-      const input = { date: form.date, name: form.name.trim(), durationMin: duration, intensity: form.intensity, calories, notes: form.notes.trim() || null };
+      const input = { date: assertDate(form.date), name: form.name.trim(), durationMin: duration, intensity: form.intensity, calories, notes: form.notes.trim() || null };
       if (entry) await updateWorkout(entry.id, input);
       else await addWorkout(input);
       toast(entry ? 'Workout updated' : 'Workout logged', 'dumbbell');
@@ -156,14 +152,10 @@ export function WorkoutSheet({ open, onClose, onSaved, date, entry }: BaseProps 
 
   const remove = () =>
     entry &&
-    confirmDestructive('Delete workout?', `"${entry.name}" will be removed.`, () =>
-      run(async () => {
-        await deleteWorkout(entry.id);
-        toast('Workout deleted', 'delete');
-        saved(onSaved);
-        onClose();
-      }),
-    );
+    askDelete('this entry', () => deleteWorkout(entry.id), () => {
+      onSaved?.();
+      onClose();
+    });
 
   return (
     <Sheet
@@ -196,6 +188,7 @@ export function WorkoutSheet({ open, onClose, onSaved, date, entry }: BaseProps 
 export function MetricsSheet({ open, onClose, onSaved, date }: BaseProps) {
   const [day, setDay] = useState(todayStr());
   const [form, setForm] = useState({ steps: '', sleep: '', heartRate: '', weight: '', stress: null as number | null, notes: '' });
+  const [hasRow, setHasRow] = useState(false);
   const { busy, error, setError, run } = useAsyncAction();
 
   useEffect(() => {
@@ -203,12 +196,13 @@ export function MetricsSheet({ open, onClose, onSaved, date }: BaseProps) {
   }, [open, date]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !isValidDateStr(day)) return;
     setError(null);
     let alive = true;
     getDailyMetrics(day)
       .then((m) => {
         if (!alive) return;
+        setHasRow(!!m);
         setForm({ steps: str(m?.steps), sleep: str(m?.sleepHours), heartRate: str(m?.heartRate), weight: str(m?.weight), stress: m?.stress ?? null, notes: m?.notes ?? '' });
       })
       .catch(() => undefined);
@@ -224,7 +218,11 @@ export function MetricsSheet({ open, onClose, onSaved, date }: BaseProps) {
       const nums = { steps: parseNum(form.steps), sleepHours: parseNum(form.sleep), heartRate: parseNum(form.heartRate), weight: parseNum(form.weight) };
       const bad = firstError([['steps', nums.steps], ['sleepHours', nums.sleepHours], ['heartRate', nums.heartRate], ['weight', nums.weight], ['stress', form.stress]]);
       if (bad) throw new Error(bad);
-      await upsertDailyMetrics({ date: day, ...nums, stress: form.stress, notes: form.notes.trim() || null });
+      const input = { date: assertDate(day, 'Day'), ...nums, stress: form.stress, notes: form.notes.trim() || null };
+      const empty = [nums.steps, nums.sleepHours, nums.heartRate, nums.weight, input.stress, input.notes].every((x) => x == null);
+      if (empty && !hasRow) throw new Error('Fill in at least one field.');
+      // Replace: the form shows every stored value, so an emptied field means "clear it".
+      await upsertDailyMetrics(input, { replace: true });
       toast('Check-in saved', 'heart-pulse');
       saved(onSaved);
       onClose();
@@ -285,7 +283,7 @@ export function BloodTestSheet({ open, onClose, onSaved, entry, presetType }: Ba
       if (value == null || !Number.isFinite(value)) throw new Error('Enter the result value.');
       const testType = form.testType === 'Custom' ? form.custom.trim() : form.testType;
       if (!testType) throw new Error('Name the custom test.');
-      const input = { date: form.date, testType, value, unit: form.unit.trim(), notes: form.notes.trim() || null, photoUri: form.photoUri, source: form.photoUri ? ('photo' as const) : ('manual' as const) };
+      const input = { date: assertDate(form.date, 'Test date'), testType, value, unit: form.unit.trim(), notes: form.notes.trim() || null, photoUri: form.photoUri, source: form.photoUri ? ('photo' as const) : ('manual' as const) };
       if (entry) await updateBloodTest(entry.id, input);
       else await addBloodTest(input);
       toast(entry ? 'Result updated' : 'Result saved · encrypted', 'lock');
@@ -295,14 +293,10 @@ export function BloodTestSheet({ open, onClose, onSaved, entry, presetType }: Ba
 
   const remove = () =>
     entry &&
-    confirmDestructive('Delete result?', `${entry.testType} on ${entry.date} will be removed.`, () =>
-      run(async () => {
-        await deleteBloodTest(entry.id);
-        toast('Result deleted', 'delete');
-        saved(onSaved);
-        onClose();
-      }),
-    );
+    askDelete('this entry', () => deleteBloodTest(entry.id), () => {
+      onSaved?.();
+      onClose();
+    });
 
   const range = def.low != null || def.high != null ? `Normal ${def.low ?? '—'}–${def.high ?? '—'} ${def.unit}` : undefined;
 

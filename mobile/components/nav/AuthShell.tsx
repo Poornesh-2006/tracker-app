@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, Easing } from 'react-native-reanimated';
+import Animated, { FadeInDown, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming, Easing } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { pastel, space, useTheme } from '@/constants/theme';
 import { DotMatrix, Text } from '@/components/ui';
@@ -8,12 +8,14 @@ import { DotMatrix, Text } from '@/components/ui';
 /** Slowly drifting pastel blob for the auth backdrop. */
 function Blob({ color, size, top, left, delay }: { color: string; size: number; top: number; left: number; delay: number }) {
   const t = useSharedValue(0);
+  const still = useReducedMotion();
   useEffect(() => {
+    if (still) return;
     t.value = withRepeat(
       withSequence(withTiming(1, { duration: 4200 + delay, easing: Easing.inOut(Easing.sin) }), withTiming(0, { duration: 4200 + delay, easing: Easing.inOut(Easing.sin) })),
       -1,
     );
-  }, [t, delay]);
+  }, [t, delay, still]);
   const style = useAnimatedStyle(() => ({ transform: [{ translateY: t.value * 18 }, { translateX: t.value * -10 }, { scale: 1 + t.value * 0.06 }] }));
   return <Animated.View style={[{ position: 'absolute', top, left, width: size, height: size, borderRadius: size / 2, backgroundColor: color, opacity: 0.85 }, style]} />;
 }
@@ -46,7 +48,7 @@ export function AuthShell({ title, subtitle, children, clock = true }: { title: 
           keyboardShouldPersistTaps="handled">
           {clock ? (
             <Animated.View entering={FadeInDown.springify().damping(16)} style={styles.clock}>
-              <DotMatrix text={time} dot={9} accessibilityLabel={`Time ${time}`} />
+              <DotMatrix text={time} dot={9} align="center" accessibilityLabel={`Time ${time}`} />
               <Text variant="label" muted style={{ marginTop: space.md }}>
                 {day} · lif.os
               </Text>

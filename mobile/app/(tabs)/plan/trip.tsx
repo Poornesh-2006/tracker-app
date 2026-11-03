@@ -1,38 +1,54 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Linking, Share, StyleSheet, Switch, View } from 'react-native';
+import { Share, StyleSheet } from 'react-native';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button, Card, CardHead, DotMatrix, Empty, Row, Screen, Text, toast } from '@/components/ui';
+import { askDelete, attempt } from '@/components/forms/actions';
 import { RouteMap } from '@/components/plan/RouteMap';
 import { ON_PASTEL, space, useTheme } from '@/constants/theme';
+import { useAsyncAction } from '@/hooks/useAsyncAction';
 import { useFocusData } from '@/hooks/useFocusData';
-import { bumpData } from '@/hooks/useDataVersion';
-import { deleteTrip, getTrip, googleMapsDirectionsUrl, googleMapsPinUrl, listStops, setTripShare, setTripStatus, upsertLiveLocation } from '@/services/travel-service';
-import { confirmDestructive } from '@/utils/confirm';
+import { deleteTrip, getTrip, googleMapsDirectionsUrl, googleMapsPinUrl, listStops, setTripStatus, upsertLiveLocation } from '@/services/travel-service';
 import { formatDate } from '@/utils/dates';
-import { errorMessage } from '@/utils/helpers';
+import { openLink } from '@/utils/links';
 
 export default function TripScreen() {
   const { c } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const tripId = Number(id);
-  const { data, reload } = useFocusData(useCallback(() => Promise.all([getTrip(tripId), listStops(tripId)]), [tripId]));
-  const [tracking, setTracking] = useState(false);
+  const { data } = useFocusData(useCallback(() => Promise.all([getTrip(tripId), listStops(tripId)]), [tripId]));
+  const [watching, setWatching] = useState(false);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [elapsed, setElapsed] = useState(0);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [now, setNow] = useState(Date.now());
   const watch = useRef<Location.LocationSubscription | null>(null);
+  const mounted = useRef(true);
+  const starting = useAsyncAction();
 
   const [trip, stops] = data ?? [null, []];
+  const active = trip?.status === 'active';
 
-  // Always release GPS when leaving the screen.
-  useEffect(() => () => watch.current?.remove(), []);
+  const stopWatching = () => {
+    watch.current?.remove();
+    watch.current = null;
+    setWatching(false);
+  };
+
+  // Release GPS when leaving; a watcher that resolves after unmount is removed on arrival.
+  useEffect(
+    () => () => {
+      mounted.current = false;
+      watch.current?.remove();
+      watch.current = null;
+    },
+    [],
+  );
 
   useEffect(() => {
-    if (!tracking) return;
-    const t0 = Date.now();
-    const timer = setInterval(() => setElapsed((Date.now() - t0) / 60000), 5000);
+    if (!watching) return;
+    const timer = setInterval(() => setNow(Date.now()), 5000);
     return () => clearInterval(timer);
-  }, [tracking]);
+  }, [watching]);
 
   if (data && !trip) {
     return (
@@ -43,67 +59,67 @@ export default function TripScreen() {
   }
   if (!trip) return <Screen back title="Trip">{null}</Screen>;
 
-  const start = async () => {
-    try {
+  /** Starts (or resumes) GPS tracking. Guarded against double taps by useAsyncAction. */
+  const start = () =>
+    starting.run(async () => {
+      if (watch.current) return;
       const perm = await Location.requestForegroundPermissionsAsync();
-      if (perm.status !== 'granted') {
-        toast('Location permission is needed to track', 'alert-circle');
-        return;
-      }
-      await setTripStatus(trip.id, 'active');
-      setElapsed(0);
-      setTracking(true);
-      watch.current = await Location.watchPositionAsync({ accuracy: Location.Accuracy.Balanced, timeInterval: 5000, distanceInterval: 10 }, (loc) => {
+      if (perm.status !== 'granted') throw new Error('Location permission is needed to track the trip.');
+      const sub = await Location.watchPositionAsync({ accuracy: Location.Accuracy.Balanced, timeInterval: 5000, distanceInterval: 10 }, (loc) => {
         const next = { lat: loc.coords.latitude, lng: loc.coords.longitude };
         setCoords(next);
-        void upsertLiveLocation({ tripId: trip.id, ...next, heading: loc.coords.heading ?? null, shareWithParents: trip.shareWithParents }).catch(() => undefined);
+        void upsertLiveLocation({ tripId: trip.id, ...next, heading: loc.coords.heading ?? null }).catch(() => undefined);
       });
-      bumpData();
-    } catch (e) {
-      setTracking(false);
-      toast(errorMessage(e, 'Could not start tracking.'), 'alert-circle');
-    }
-  };
+      if (!mounted.current || watch.current) {
+        sub.remove(); // screen left (or a second start won) while we waited
+        return;
+      }
+      watch.current = sub;
+      setWatching(true);
+      setStartedAt(Date.now());
+      if (!active) await attempt(() => setTripStatus(trip.id, 'active'));
+    }, 'Could not start tracking.');
 
   const finish = async () => {
-    watch.current?.remove();
-    watch.current = null;
-    setTracking(false);
-    await setTripStatus(trip.id, 'done');
-    bumpData();
-    toast('Trip complete', 'flag-checkered');
+    stopWatching();
+    if (await attempt(() => setTripStatus(trip.id, 'done'), 'Could not finish the trip.')) toast('Trip complete', 'flag-checkered');
   };
 
   const share = () =>
     void Share.share({
-      message: `I'm traveling: ${trip.fromName} → ${trip.toName}\nStatus: ${tracking ? 'on the way' : trip.status}\n${coords ? googleMapsPinUrl(coords.lat, coords.lng) : googleMapsDirectionsUrl(trip.fromName, trip.toName)}`,
+      message: `I'm traveling: ${trip.fromName} → ${trip.toName}\nStatus: ${active ? 'on the way' : trip.status}\n${coords ? googleMapsPinUrl(coords.lat, coords.lng) : googleMapsDirectionsUrl(trip.fromName, trip.toName)}`,
     });
 
   const remove = () =>
-    confirmDestructive('Delete trip?', `${trip.title} will be removed.`, async () => {
-      watch.current?.remove();
+    askDelete(trip.title, async () => {
+      stopWatching();
       await deleteTrip(trip.id);
-      bumpData();
-      router.back();
-    });
+    }, () => router.back());
 
-  const progress = tracking && trip.durationMin ? Math.min(1, elapsed / trip.durationMin) : trip.status === 'done' ? 1 : null;
+  const minutes = startedAt ? Math.floor((now - startedAt) / 60000) : 0;
+  const progress = trip.status === 'done' ? 1 : watching && trip.durationMin ? Math.min(1, minutes / trip.durationMin) : null;
+  const headTone = active ? 'accent' : 'ink';
 
   return (
     <Screen back eyebrow={formatDate(trip.date)} title={trip.title}>
-      <Card index={0} tone={tracking ? 'accent' : 'ink'}>
-        <CardHead label={tracking ? 'On the way' : trip.status === 'done' ? 'Arrived' : 'Planned'} icon={tracking ? 'navigation-variant' : 'subway-variant'} tone={tracking ? 'accent' : 'ink'} />
-        <DotMatrix text={tracking ? `${Math.floor(elapsed)}MIN` : `${trip.durationMin ?? '--'}MIN`} dot={6} color={tracking ? '#fff' : c.onInk} offColor="transparent" />
+      <Card index={0} tone={headTone}>
+        <CardHead
+          label={active ? (watching ? 'On the way · tracking' : 'On the way · tracking paused') : trip.status === 'done' ? 'Arrived' : 'Planned'}
+          icon={active ? 'navigation-variant' : 'subway-variant'}
+          tone={headTone}
+        />
+        <DotMatrix text={watching ? `${minutes}MIN` : `${trip.durationMin ?? '--'}MIN`} dot={6} color={active ? '#fff' : c.onInk} offColor="transparent" />
         <Row style={{ marginTop: space.md }}>
-          {trip.status !== 'done' ? (
-            tracking ? (
-              <Button label="Arrived" icon="flag-checkered" kind="pink" onPress={() => void finish()} style={styles.flex} />
-            ) : (
-              <Button label="Start trip" icon="play" kind="pink" onPress={() => void start()} style={styles.flex} />
-            )
-          ) : null}
-          <Button label="Share" icon="share-variant" kind="ghost" onPress={share} style={[styles.flex, { borderColor: 'rgba(255,255,255,0.3)' }]} />
+          {trip.status === 'planned' ? <Button label="Start trip" icon="play" kind="pink" onPress={() => void start()} loading={starting.busy} style={styles.flex} /> : null}
+          {active && !watching ? <Button label="Resume" icon="play" kind="pink" onPress={() => void start()} loading={starting.busy} style={styles.flex} /> : null}
+          {active ? <Button label="Arrived" icon="flag-checkered" kind="inverse" onPress={() => void finish()} style={styles.flex} /> : null}
         </Row>
+        <Button label="Share trip" icon="share-variant" kind="inverse" onPress={share} style={{ marginTop: space.sm }} />
+        {starting.error ? (
+          <Text variant="small" color={active ? '#fff' : c.onInk} style={{ marginTop: space.sm }}>
+            {starting.error}
+          </Text>
+        ) : null}
       </Card>
 
       <Card index={1} tone="sky">
@@ -111,45 +127,22 @@ export default function TripScreen() {
         <RouteMap stops={stops.map((s) => ({ name: s.name, caption: s.action, color: s.lineColor }))} progress={progress} />
       </Card>
 
-      <Card index={2}>
-        <View style={styles.row}>
-          <View style={styles.flex}>
-            <Text variant="title">Share with parents</Text>
-            <Text variant="small" muted>
-              Live location is saved while the trip is active.
-            </Text>
-          </View>
-          <Switch
-            value={trip.shareWithParents}
-            onValueChange={async (v) => {
-              await setTripShare(trip.id, v);
-              await reload();
-            }}
-            trackColor={{ true: c.ink }}
-            accessibilityLabel="Share with parents"
-          />
-        </View>
-      </Card>
-
       {trip.notes ? (
-        <Card index={3} tone="butter">
+        <Card index={2} tone="butter">
           <CardHead label="Notes" tone="butter" />
           <Text color={ON_PASTEL}>{trip.notes}</Text>
         </Card>
       ) : null}
       {coords ? (
         <Text variant="small" muted>
-          Last fix {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
+          Last GPS fix {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)} · shared only when you tap Share
         </Text>
       ) : null}
 
-      <Button label="Open in Google Maps" icon="google-maps" kind="ghost" onPress={() => void Linking.openURL(googleMapsDirectionsUrl(trip.fromName, trip.toName))} />
+      <Button label="Open in Google Maps" icon="google-maps" kind="ghost" onPress={() => void openLink(googleMapsDirectionsUrl(trip.fromName, trip.toName))} />
       <Button label="Delete trip" icon="delete-outline" kind="ghost" onPress={remove} />
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-});
+const styles = StyleSheet.create({ flex: { flex: 1 } });

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import Svg, { Ellipse, Rect } from 'react-native-svg';
 import { getRegion, type RegionId, type RegionStatus } from '@/constants/body-map';
 import { accent, pastel, useTheme } from '@/constants/theme';
@@ -59,11 +59,12 @@ export function BodyMap({
   const height = Math.round((width * VIEW_H) / VIEW_W);
   const scale = width / VIEW_W;
   const pulse = useSharedValue(1);
+  const still = useReducedMotion();
 
   useEffect(() => {
     pulse.value = 1;
-    if (selected) pulse.value = withRepeat(withSequence(withTiming(1.06, { duration: 650 }), withTiming(1, { duration: 650 })), -1);
-  }, [selected, pulse]);
+    if (selected && !still) pulse.value = withRepeat(withSequence(withTiming(1.06, { duration: 650 }), withTiming(1, { duration: 650 })), -1);
+  }, [selected, pulse, still]);
   const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
 
   const draw = (id: RegionId, highlight: boolean) =>

@@ -1,0 +1,209 @@
+{
+  "fn": "parseValues",
+  "description": "SchemaSheet validation: required, ranges, integers, dates (regression: any text was stored as a date on web).",
+  "cases": [
+    {
+      "name": "valid record",
+      "input": {
+        "fields": [
+          {
+            "key": "t",
+            "label": "Title",
+            "kind": "text",
+            "required": true
+          },
+          {
+            "key": "n",
+            "label": "Level",
+            "kind": "number",
+            "min": 1,
+            "max": 5,
+            "integer": true
+          },
+          {
+            "key": "d",
+            "label": "Date",
+            "kind": "date"
+          }
+        ],
+        "raw": {
+          "t": "  Rust ",
+          "n": "3",
+          "d": "2026-02-28"
+        }
+      },
+      "expected": {
+        "t": "Rust",
+        "n": 3,
+        "d": "2026-02-28"
+      }
+    },
+    {
+      "name": "missing required text",
+      "input": {
+        "fields": [
+          {
+            "key": "t",
+            "label": "Title",
+            "kind": "text",
+            "required": true
+          }
+        ],
+        "raw": {
+          "t": "   "
+        }
+      },
+      "expected": {
+        "error": "Title is required."
+      }
+    },
+    {
+      "name": "number above max",
+      "input": {
+        "fields": [
+          {
+            "key": "n",
+            "label": "Level",
+            "kind": "number",
+            "max": 5
+          }
+        ],
+        "raw": {
+          "n": "6"
+        }
+      },
+      "expected": {
+        "error": "Level can’t exceed 5."
+      }
+    },
+    {
+      "name": "non-integer where integer required",
+      "input": {
+        "fields": [
+          {
+            "key": "n",
+            "label": "Level",
+            "kind": "number",
+            "integer": true
+          }
+        ],
+        "raw": {
+          "n": "2.5"
+        }
+      },
+      "expected": {
+        "error": "Level must be a whole number."
+      }
+    },
+    {
+      "name": "junk number",
+      "input": {
+        "fields": [
+          {
+            "key": "n",
+            "label": "Amount",
+            "kind": "number"
+          }
+        ],
+        "raw": {
+          "n": "12abc"
+        }
+      },
+      "expected": {
+        "error": "Amount must be a number."
+      }
+    },
+    {
+      "name": "thousands amount",
+      "input": {
+        "fields": [
+          {
+            "key": "n",
+            "label": "Amount",
+            "kind": "number",
+            "min": 0.01
+          }
+        ],
+        "raw": {
+          "n": "1,500"
+        }
+      },
+      "expected": {
+        "n": 1500
+      }
+    },
+    {
+      "name": "impossible date",
+      "input": {
+        "fields": [
+          {
+            "key": "d",
+            "label": "Date",
+            "kind": "date"
+          }
+        ],
+        "raw": {
+          "d": "2026-02-30"
+        }
+      },
+      "expected": {
+        "error": "Date must be a real date (YYYY-MM-DD)."
+      }
+    },
+    {
+      "name": "text as date",
+      "input": {
+        "fields": [
+          {
+            "key": "d",
+            "label": "Date",
+            "kind": "date"
+          }
+        ],
+        "raw": {
+          "d": "abc"
+        }
+      },
+      "expected": {
+        "error": "Date must be a real date (YYYY-MM-DD)."
+      }
+    },
+    {
+      "name": "required date cleared",
+      "input": {
+        "fields": [
+          {
+            "key": "d",
+            "label": "Date",
+            "kind": "date"
+          }
+        ],
+        "raw": {
+          "d": ""
+        }
+      },
+      "expected": {
+        "error": "Date is required."
+      }
+    },
+    {
+      "name": "optional date blank",
+      "input": {
+        "fields": [
+          {
+            "key": "d",
+            "label": "Next due",
+            "kind": "date",
+            "optional": true
+          }
+        ],
+        "raw": {
+          "d": ""
+        }
+      },
+      "expected": {
+        "d": null
+      }
+    }
+  ]
+}

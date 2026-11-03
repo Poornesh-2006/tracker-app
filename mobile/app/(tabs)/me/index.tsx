@@ -10,7 +10,7 @@ import { getAchievements, getLifetimePoints, getUserRank, rankForPoints } from '
 const load = () => Promise.all([getUserRank(), getAchievements(), getLifetimePoints()]).then(([rank, achievements, lifetime]) => ({ rank, achievements, lifetime }));
 
 export default function MeScreen() {
-  const { c } = useTheme();
+  const { c, tone } = useTheme();
   const { data } = useFocusData(useCallback(load, []));
   const lifetime = data?.lifetime ?? 0;
   const current = rankForPoints(lifetime);
@@ -24,7 +24,7 @@ export default function MeScreen() {
         <CardHead label={`Rank ${current.level} of ${RANKS.length}`} tone="ink" right={<Text style={{ fontSize: 28 }}>{current.icon}</Text>} />
         <DotMatrix text={current.name} dot={6} color={c.onInk} offColor="transparent" />
         <View style={{ marginTop: space.lg, gap: 6 }}>
-          <Meter progress={progress} color="#D4F25A" track="rgba(255,255,255,0.15)" height={10} />
+          <Meter progress={progress} color={tone('ink').hi} track={tone('ink').track} height={10} />
           <Text variant="small" color={c.onInk} style={{ opacity: 0.7 }}>
             {next ? `${(next.minPoints - lifetime).toLocaleString()} lifetime points to ${next.name}` : 'Top rank reached 🔥'}
           </Text>

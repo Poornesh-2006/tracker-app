@@ -4,7 +4,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { accent, radii, useTheme } from '@/constants/theme';
+import { accent, ON_PASTEL, radii, useTheme } from '@/constants/theme';
 import { Tap, haptic, type IconName } from '@/components/ui';
 
 /** Visible tabs, in order. The + button sits in the middle. Other routes (me) are hidden. */
@@ -91,7 +91,7 @@ export function TabBar({ state, navigation, onPlus, plusOpen }: BottomTabBarProp
             style={[styles.plus, { backgroundColor: accent.pink }]}
             accessibilityLabel={plusOpen ? 'Close quick add' : 'Quick add'}>
             <Animated.View style={plusStyle}>
-              <MaterialCommunityIcons name="plus" size={30} color="#141413" />
+              <MaterialCommunityIcons name="plus" size={30} color={ON_PASTEL} />
             </Animated.View>
           </Tap>
           {item(TABS[2])}

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { accent, pastel, space, useTheme } from '@/constants/theme';
 import { Text } from '@/components/ui';
@@ -43,9 +43,11 @@ export function RouteMap({ stops, progress }: { stops: RouteStop[]; progress?: n
     if (progress == null) return;
     pos.value = withSpring(progress * Math.max(0, stops.length - 1) * ROW, { damping: 20 });
   }, [progress, stops.length, pos]);
+  const still = useReducedMotion();
+  // Only pulse while a trip is in progress, and never with reduce-motion on.
   useEffect(() => {
-    pulse.value = withRepeat(withSequence(withTiming(1.25, { duration: 600 }), withTiming(1, { duration: 600 })), -1);
-  }, [pulse]);
+    pulse.value = progress != null && progress < 1 && !still ? withRepeat(withSequence(withTiming(1.25, { duration: 600 }), withTiming(1, { duration: 600 })), -1) : 1;
+  }, [pulse, progress, still]);
   const marker = useAnimatedStyle(() => ({ transform: [{ translateY: pos.value }, { scale: pulse.value }] }));
 
   if (stops.length < 2) return null;

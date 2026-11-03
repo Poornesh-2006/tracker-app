@@ -1,15 +1,14 @@
 import { useMemo, useState } from 'react';
-import { StyleSheet, Switch, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
-import { Button, Card, CardHead, DateField, Field, NumberField, Row, Screen, Segmented, Text, parseNum, toast } from '@/components/ui';
+import { Button, Card, CardHead, DateField, Field, NumberField, Row, Screen, Segmented, parseNum, toast } from '@/components/ui';
 import { ErrorText } from '@/components/forms/FormParts';
 import { LINE_COLORS, RouteMap, stopNames } from '@/components/plan/RouteMap';
-import { useTheme } from '@/constants/theme';
 import { useAsyncAction } from '@/hooks/useAsyncAction';
 import { bumpData } from '@/hooks/useDataVersion';
 import { createTrip, type StopInput } from '@/services/travel-service';
 import type { TravelTrip } from '@/types';
-import { todayStr } from '@/utils/dates';
+import { assertDate, todayStr } from '@/utils/dates';
 
 const MODES = [
   { value: 'metro' as TravelTrip['mode'], label: 'Metro' },
@@ -19,9 +18,8 @@ const MODES = [
 ];
 
 export default function NewTripScreen() {
-  const { c } = useTheme();
   const params = useLocalSearchParams<{ date?: string }>();
-  const [form, setForm] = useState({ date: params.date ?? todayStr(), from: '', to: '', via: '', duration: '', price: '', mode: 'metro' as TravelTrip['mode'], share: true, notes: '' });
+  const [form, setForm] = useState({ date: params.date ?? todayStr(), from: '', to: '', via: '', duration: '', price: '', mode: 'metro' as TravelTrip['mode'], notes: '' });
   const { busy, error, run } = useAsyncAction();
   const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -43,14 +41,13 @@ export default function NewTripScreen() {
         action: i === 0 ? 'Board' : i === names.length - 1 ? 'Arrive' : 'Change',
       }));
       const id = await createTrip({
-        date: form.date,
+        date: assertDate(form.date),
         title: `${form.from.trim()} → ${form.to.trim()}`,
         fromName: form.from,
         toName: form.to,
         mode: form.mode,
         totalPrice: price,
         durationMin: duration,
-        shareWithParents: form.share,
         notes: form.notes.trim() || null,
         stops,
         addToTodo: true,
@@ -75,17 +72,6 @@ export default function NewTripScreen() {
         </View>
       </Row>
       <DateField label="Date" value={form.date} onChange={set('date')} />
-      <Card tone="surface">
-        <View style={styles.switchRow}>
-          <View style={styles.flex}>
-            <Text variant="title">Share with parents</Text>
-            <Text variant="small" muted>
-              Lets you send your live location while traveling.
-            </Text>
-          </View>
-          <Switch value={form.share} onValueChange={(share) => setForm((f) => ({ ...f, share }))} trackColor={{ true: c.ink }} accessibilityLabel="Share with parents" />
-        </View>
-      </Card>
       <Field label="Notes" value={form.notes} onChangeText={set('notes')} multiline />
 
       {names.length >= 2 ? (
@@ -103,5 +89,4 @@ export default function NewTripScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
 });

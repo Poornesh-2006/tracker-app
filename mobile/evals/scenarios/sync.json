@@ -4,107 +4,529 @@
     {
       "name": "backdated meal reaches the server without a full sync",
       "steps": [
-        { "op": "addMeal", "d": 5, "calories": 400 },
-        { "op": "flush", "expect": { "error": null, "remaining": 0 } },
-        { "op": "remote", "table": "meals", "pluck": ["meal_date", "total_calories"], "expect": [{ "meal_date": "$d:5", "total_calories": 400 }] }
+        {
+          "op": "addMeal",
+          "d": 5,
+          "calories": 400
+        },
+        {
+          "op": "flush",
+          "expect": {
+            "error": null,
+            "remaining": 0
+          }
+        },
+        {
+          "op": "remote",
+          "table": "meals",
+          "pluck": [
+            "meal_date",
+            "total_calories"
+          ],
+          "expect": [
+            {
+              "meal_date": "$d:5",
+              "total_calories": 400
+            }
+          ]
+        }
       ]
     },
     {
       "name": "re-dated workout moves on the server (old day emptied)",
       "steps": [
-        { "op": "addWorkout", "as": "w", "d": 3, "name": "Cycling", "durationMin": 40 },
-        { "op": "flush" },
-        { "op": "updateWorkout", "ref": "w", "d": 1, "name": "Cycling", "durationMin": 40 },
-        { "op": "flush", "expect": { "error": null, "remaining": 0 } },
-        { "op": "remote", "table": "workouts", "pluck": ["workout_date"], "expect": [{ "workout_date": "$d:1" }] }
+        {
+          "op": "addWorkout",
+          "as": "w",
+          "d": 3,
+          "name": "Cycling",
+          "durationMin": 40
+        },
+        {
+          "op": "flush"
+        },
+        {
+          "op": "updateWorkout",
+          "ref": "w",
+          "d": 1,
+          "name": "Cycling",
+          "durationMin": 40
+        },
+        {
+          "op": "flush",
+          "expect": {
+            "error": null,
+            "remaining": 0
+          }
+        },
+        {
+          "op": "remote",
+          "table": "workouts",
+          "pluck": [
+            "workout_date"
+          ],
+          "expect": [
+            {
+              "workout_date": "$d:1"
+            }
+          ]
+        }
       ]
     },
     {
       "name": "deleting the only meal of a day clears that day remotely",
       "steps": [
-        { "op": "addMeal", "as": "m", "d": 0 },
-        { "op": "flush" },
-        { "op": "deleteMeal", "ref": "m" },
-        { "op": "flush", "expect": { "error": null } },
-        { "op": "remote", "table": "meals", "expect": [] }
+        {
+          "op": "addMeal",
+          "as": "m",
+          "d": 0
+        },
+        {
+          "op": "flush"
+        },
+        {
+          "op": "deleteMeal",
+          "ref": "m"
+        },
+        {
+          "op": "flush",
+          "expect": {
+            "error": null
+          }
+        },
+        {
+          "op": "remote",
+          "table": "meals",
+          "expect": []
+        }
       ]
     },
     {
       "name": "two meals, one deleted: server keeps exactly the survivor",
       "steps": [
-        { "op": "addMeal", "as": "a", "d": 2, "name": "Oats", "calories": 300 },
-        { "op": "addMeal", "as": "b", "d": 2, "name": "Rice", "calories": 500 },
-        { "op": "flush" },
-        { "op": "deleteMeal", "ref": "a" },
-        { "op": "flush" },
-        { "op": "remote", "table": "meals", "pluck": ["total_calories"], "expect": [{ "total_calories": 500 }] }
+        {
+          "op": "addMeal",
+          "as": "a",
+          "d": 2,
+          "name": "Oats",
+          "calories": 300
+        },
+        {
+          "op": "addMeal",
+          "as": "b",
+          "d": 2,
+          "name": "Rice",
+          "calories": 500
+        },
+        {
+          "op": "flush"
+        },
+        {
+          "op": "deleteMeal",
+          "ref": "a"
+        },
+        {
+          "op": "flush"
+        },
+        {
+          "op": "remote",
+          "table": "meals",
+          "pluck": [
+            "total_calories"
+          ],
+          "expect": [
+            {
+              "total_calories": 500
+            }
+          ]
+        }
       ]
     },
     {
       "name": "network failure keeps the marker and a retry sends fresh data",
       "steps": [
-        { "op": "addMeal", "as": "m", "d": 0, "calories": 100 },
-        { "op": "failNextInsert" },
-        { "op": "flush", "expect": { "error": "network down", "remaining": 1 } },
-        { "op": "updateMeal", "ref": "m", "d": 0, "calories": 150 },
-        { "op": "flush", "expect": { "error": null, "remaining": 0 } },
-        { "op": "remote", "table": "meals", "pluck": ["total_calories"], "expect": [{ "total_calories": 150 }] }
+        {
+          "op": "addMeal",
+          "as": "m",
+          "d": 0,
+          "calories": 100
+        },
+        {
+          "op": "failNextInsert"
+        },
+        {
+          "op": "flush",
+          "expect": {
+            "error": "network down",
+            "remaining": 1
+          }
+        },
+        {
+          "op": "updateMeal",
+          "ref": "m",
+          "d": 0,
+          "calories": 150
+        },
+        {
+          "op": "flush",
+          "expect": {
+            "error": null,
+            "remaining": 0
+          }
+        },
+        {
+          "op": "remote",
+          "table": "meals",
+          "pluck": [
+            "total_calories"
+          ],
+          "expect": [
+            {
+              "total_calories": 150
+            }
+          ]
+        }
       ]
     },
     {
       "name": "signed out: nothing pushed, edits stay queued",
       "steps": [
-        { "op": "user", "id": null },
-        { "op": "addMeal", "d": 0 },
-        { "op": "addWorkout", "d": 0 },
-        { "op": "flush", "expect": { "error": "re:Sign in", "pushed": 0, "remaining": 2 } },
-        { "op": "remote", "table": "meals", "expect": [] }
+        {
+          "op": "user",
+          "id": null
+        },
+        {
+          "op": "addMeal",
+          "d": 0
+        },
+        {
+          "op": "addWorkout",
+          "d": 0
+        },
+        {
+          "op": "flush",
+          "expect": {
+            "error": "re:Sign in",
+            "pushed": 0,
+            "remaining": 2
+          }
+        },
+        {
+          "op": "remote",
+          "table": "meals",
+          "expect": []
+        }
       ]
     },
     {
       "name": "a different account cannot receive this phone's data",
       "steps": [
-        { "op": "addMeal", "d": 0 },
-        { "op": "flush", "expect": { "error": null } },
-        { "op": "user", "id": "user-2" },
-        { "op": "addMeal", "d": 0, "name": "Second" },
-        { "op": "flush", "expect": { "error": "re:another account", "pushed": 0 } },
-        { "op": "remote", "table": "meals", "pluck": ["user_id"], "expect": [{ "user_id": "user-1" }] },
-        { "op": "user", "id": "user-1" },
-        { "op": "flush", "expect": { "error": null, "remaining": 0 } },
-        { "op": "remote", "table": "meals", "pluck": ["user_id"], "expect": [{ "user_id": "user-1" }, { "user_id": "user-1" }] }
+        {
+          "op": "addMeal",
+          "d": 0
+        },
+        {
+          "op": "flush",
+          "expect": {
+            "error": null
+          }
+        },
+        {
+          "op": "user",
+          "id": "user-2"
+        },
+        {
+          "op": "addMeal",
+          "d": 0,
+          "name": "Second"
+        },
+        {
+          "op": "flush",
+          "expect": {
+            "error": "re:another account",
+            "pushed": 0
+          }
+        },
+        {
+          "op": "remote",
+          "table": "meals",
+          "pluck": [
+            "user_id"
+          ],
+          "expect": [
+            {
+              "user_id": "user-1"
+            }
+          ]
+        },
+        {
+          "op": "user",
+          "id": "user-1"
+        },
+        {
+          "op": "flush",
+          "expect": {
+            "error": null,
+            "remaining": 0
+          }
+        },
+        {
+          "op": "remote",
+          "table": "meals",
+          "pluck": [
+            "user_id"
+          ],
+          "expect": [
+            {
+              "user_id": "user-1"
+            },
+            {
+              "user_id": "user-1"
+            }
+          ]
+        }
       ]
     },
     {
       "name": "partial metric saves merge into one remote row",
       "steps": [
-        { "op": "logMetrics", "d": 0, "fields": { "steps": 1000 } },
-        { "op": "logMetrics", "d": 0, "fields": { "sleepHours": 7 } },
-        { "op": "flush" },
-        { "op": "remote", "table": "daily_metrics", "pluck": ["daily_steps", "sleep_duration_hours"], "expect": [{ "daily_steps": 1000, "sleep_duration_hours": 7 }] }
+        {
+          "op": "logMetrics",
+          "d": 0,
+          "fields": {
+            "steps": 1000
+          }
+        },
+        {
+          "op": "logMetrics",
+          "d": 0,
+          "fields": {
+            "sleepHours": 7
+          }
+        },
+        {
+          "op": "flush"
+        },
+        {
+          "op": "remote",
+          "table": "daily_metrics",
+          "pluck": [
+            "daily_steps",
+            "sleep_duration_hours"
+          ],
+          "expect": [
+            {
+              "daily_steps": 1000,
+              "sleep_duration_hours": 7
+            }
+          ]
+        }
       ]
     },
     {
       "name": "repeated edits to one day collapse into one queue marker",
       "steps": [
-        { "op": "user", "id": null },
-        { "op": "addMeal", "as": "m", "d": 4 },
-        { "op": "updateMeal", "ref": "m", "d": 4, "calories": 1 },
-        { "op": "updateMeal", "ref": "m", "d": 4, "calories": 2 },
-        { "op": "queue", "expect": 1 }
+        {
+          "op": "user",
+          "id": null
+        },
+        {
+          "op": "addMeal",
+          "as": "m",
+          "d": 4
+        },
+        {
+          "op": "updateMeal",
+          "ref": "m",
+          "d": 4,
+          "calories": 1
+        },
+        {
+          "op": "updateMeal",
+          "ref": "m",
+          "d": 4,
+          "calories": 2
+        },
+        {
+          "op": "queue",
+          "expect": 1
+        }
       ]
     },
     {
       "name": "full sync twice is idempotent across many days",
       "steps": [
-        { "op": "addMeal", "d": 1 },
-        { "op": "addMeal", "d": 2 },
-        { "op": "addMeal", "d": 3 },
-        { "op": "logMetrics", "d": 2, "fields": { "steps": 10 } },
-        { "op": "syncAll", "expect": { "error": null, "remaining": 0 } },
-        { "op": "syncAll", "expect": { "error": null, "remaining": 0 } },
-        { "op": "remote", "table": "meals", "pluck": ["meal_date"], "expect": [{ "meal_date": "re:." }, { "meal_date": "re:." }, { "meal_date": "re:." }] },
-        { "op": "remote", "table": "daily_metrics", "pluck": ["metric_date"], "expect": [{ "metric_date": "$d:2" }] }
+        {
+          "op": "addMeal",
+          "d": 1
+        },
+        {
+          "op": "addMeal",
+          "d": 2
+        },
+        {
+          "op": "addMeal",
+          "d": 3
+        },
+        {
+          "op": "logMetrics",
+          "d": 2,
+          "fields": {
+            "steps": 10
+          }
+        },
+        {
+          "op": "syncAll",
+          "expect": {
+            "error": null,
+            "remaining": 0
+          }
+        },
+        {
+          "op": "syncAll",
+          "expect": {
+            "error": null,
+            "remaining": 0
+          }
+        },
+        {
+          "op": "remote",
+          "table": "meals",
+          "pluck": [
+            "meal_date"
+          ],
+          "expect": [
+            {
+              "meal_date": "re:."
+            },
+            {
+              "meal_date": "re:."
+            },
+            {
+              "meal_date": "re:."
+            }
+          ]
+        },
+        {
+          "op": "remote",
+          "table": "daily_metrics",
+          "pluck": [
+            "metric_date"
+          ],
+          "expect": [
+            {
+              "metric_date": "$d:2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "editing an existing day’s check-in is queued and synced (regression: updates were never queued)",
+      "steps": [
+        {
+          "op": "logMetrics",
+          "d": 2,
+          "fields": {
+            "steps": 1000
+          }
+        },
+        {
+          "op": "flush",
+          "expect": {
+            "error": null,
+            "remaining": 0
+          }
+        },
+        {
+          "op": "logMetrics",
+          "d": 2,
+          "fields": {
+            "steps": 2500
+          }
+        },
+        {
+          "op": "queue",
+          "expect": 1
+        },
+        {
+          "op": "flush",
+          "expect": {
+            "error": null,
+            "remaining": 0
+          }
+        },
+        {
+          "op": "remote",
+          "table": "daily_metrics",
+          "pluck": [
+            "daily_steps"
+          ],
+          "expect": [
+            {
+              "daily_steps": 2500
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "check-in form can clear a field (regression: COALESCE kept old values forever)",
+      "steps": [
+        {
+          "op": "logMetrics",
+          "d": 0,
+          "fields": {
+            "weight": 300,
+            "notes": "typo"
+          }
+        },
+        {
+          "op": "logMetrics",
+          "d": 0,
+          "replace": true,
+          "fields": {
+            "weight": null,
+            "notes": null,
+            "steps": 4000
+          }
+        },
+        {
+          "op": "metrics",
+          "d": 0,
+          "expect": {
+            "weight": null,
+            "notes": null,
+            "steps": 4000
+          }
+        }
+      ]
+    },
+    {
+      "name": "partial saves still merge (other callers keep COALESCE semantics)",
+      "steps": [
+        {
+          "op": "logMetrics",
+          "d": 0,
+          "fields": {
+            "sleepHours": 7
+          }
+        },
+        {
+          "op": "logMetrics",
+          "d": 0,
+          "fields": {
+            "steps": 10
+          }
+        },
+        {
+          "op": "metrics",
+          "d": 0,
+          "expect": {
+            "sleepHours": 7,
+            "steps": 10
+          }
+        }
       ]
     }
   ]
