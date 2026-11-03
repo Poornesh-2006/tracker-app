@@ -315,3 +315,6 @@ export async function awardPointsSafely(reason: PointReason, date: string): Prom
     console.error(`Awarding points for ${reason} failed:`, e);
   }
 }
+
+/** Lifetime *earned* points (rank basis); spending in the shop doesn't reduce it. */
+export const getLifetimePoints = (userId = LOCAL_USER_ID) => pointsSince(userId);
