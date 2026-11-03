@@ -308,121 +308,13 @@ class WebDatabase {
 
 let instance: WebDatabase | null = null;
 
+/** Tables are created lazily on first access, so no schema copy is needed here. */
 export async function getDb(): Promise<WebDatabase> {
   if (!instance) instance = new WebDatabase('lifos.db');
-  await instance.execAsync(MIGRATIONS);
   return instance;
 }
 
-const MIGRATIONS = `
-PRAGMA journal_mode = 'wal';
-PRAGMA foreign_keys = ON;
-
-CREATE TABLE IF NOT EXISTS blood_tests (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, test_type TEXT, value_enc TEXT,
-  unit TEXT, notes_enc TEXT, photo_uri TEXT, source TEXT, created_at TEXT
-);
-CREATE TABLE IF NOT EXISTS daily_metrics (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, heart_rate INTEGER, steps INTEGER,
-  sleep_hours REAL, stress INTEGER, weight REAL, recovery_score INTEGER, notes TEXT, created_at TEXT
-);
-CREATE TABLE IF NOT EXISTS food_log (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, meal_type TEXT, name TEXT,
-  calories INTEGER, protein REAL, carbs REAL, fat REAL, photo_uri TEXT, created_at TEXT
-);
-CREATE TABLE IF NOT EXISTS workouts (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, name TEXT, duration_min INTEGER,
-  intensity INTEGER, calories INTEGER, notes TEXT, created_at TEXT
-);
-CREATE TABLE IF NOT EXISTS settings (key TEXT, value TEXT);
-CREATE TABLE IF NOT EXISTS sync_queue (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, payload TEXT, kind TEXT, created_at TEXT
-);
-CREATE TABLE IF NOT EXISTS todos (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, done INTEGER, due_date TEXT, category TEXT, created_at TEXT
-);
-CREATE TABLE IF NOT EXISTS hydration_log (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, amount_ml INTEGER, note TEXT, created_at TEXT
-);
-CREATE TABLE IF NOT EXISTS wardrobe_items (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, name TEXT, photo_uri TEXT,
-  color TEXT, brand TEXT, notes TEXT, favorite INTEGER, created_at TEXT
-);
-CREATE TABLE IF NOT EXISTS grooming_routines (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, kind TEXT, time_of_day TEXT,
-  schedule_days TEXT, notes TEXT, active INTEGER, created_at TEXT
-);
-CREATE TABLE IF NOT EXISTS knowledge_nodes (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, parent_id INTEGER, learned INTEGER,
-  color TEXT, notes TEXT, created_at TEXT
-);
-CREATE TABLE IF NOT EXISTS learning_media (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT, title TEXT, creator TEXT, url TEXT,
-  status TEXT, notes TEXT, created_at TEXT
-);
-CREATE TABLE IF NOT EXISTS skills (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, category TEXT, level INTEGER, notes TEXT, created_at TEXT
-);
-CREATE TABLE IF NOT EXISTS education_marks (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, subject TEXT, exam TEXT, score REAL, max_score REAL,
-  date TEXT, notes TEXT, created_at TEXT
-);
-CREATE TABLE IF NOT EXISTS college_activities (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT, title TEXT, date TEXT, status TEXT,
-  hours REAL, notes TEXT, created_at TEXT
-);
-CREATE TABLE IF NOT EXISTS finance_transactions (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, type TEXT, category TEXT, amount REAL, date TEXT,
-  source TEXT, note TEXT, created_at TEXT
-);
-CREATE TABLE IF NOT EXISTS finance_subscriptions (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, amount REAL, billing_cycle TEXT,
-  next_due TEXT, active INTEGER, created_at TEXT
-);
-CREATE TABLE IF NOT EXISTS investments (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT, symbol TEXT, name TEXT, quantity REAL,
-  avg_cost REAL, current_price REAL, notes TEXT, created_at TEXT
-);
-CREATE TABLE IF NOT EXISTS travel_trips (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, title TEXT, from_name TEXT, to_name TEXT,
-  mode TEXT, total_price REAL, total_distance_km REAL, duration_min INTEGER,
-  share_with_parents INTEGER, notes TEXT, status TEXT, created_at TEXT
-);
-CREATE TABLE IF NOT EXISTS travel_stops (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, trip_id INTEGER, name TEXT, area TEXT, lat REAL,
-  lng REAL, order_index INTEGER, distance_from_prev_km REAL, price_from_prev REAL,
-  line_name TEXT, line_color TEXT, action TEXT, created_at TEXT
-);
-CREATE TABLE IF NOT EXISTS travel_live (
-  id INTEGER PRIMARY KEY, trip_id INTEGER, lat REAL, lng REAL, heading REAL,
-  updated_at TEXT, share_with_parents INTEGER
-);
-`;
-
 export async function resetDatabase(): Promise<void> {
-  const db = await getDb();
-  await db.execAsync(`
-    DROP TABLE IF EXISTS blood_tests;
-    DROP TABLE IF EXISTS daily_metrics;
-    DROP TABLE IF EXISTS food_log;
-    DROP TABLE IF EXISTS workouts;
-    DROP TABLE IF EXISTS settings;
-    DROP TABLE IF EXISTS sync_queue;
-    DROP TABLE IF EXISTS todos;
-    DROP TABLE IF EXISTS hydration_log;
-    DROP TABLE IF EXISTS wardrobe_items;
-    DROP TABLE IF EXISTS grooming_routines;
-    DROP TABLE IF EXISTS knowledge_nodes;
-    DROP TABLE IF EXISTS learning_media;
-    DROP TABLE IF EXISTS skills;
-    DROP TABLE IF EXISTS education_marks;
-    DROP TABLE IF EXISTS college_activities;
-    DROP TABLE IF EXISTS finance_transactions;
-    DROP TABLE IF EXISTS finance_subscriptions;
-    DROP TABLE IF EXISTS investments;
-    DROP TABLE IF EXISTS travel_trips;
-    DROP TABLE IF EXISTS travel_stops;
-    DROP TABLE IF EXISTS travel_live;
-  `);
-  await getDb();
+  databases.delete('lifos.db');
+  instance = null;
 }

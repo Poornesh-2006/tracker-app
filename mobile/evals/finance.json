@@ -1,0 +1,93 @@
+{
+  "fn": "summarizeFinance",
+  "description": "Income/expense totals, expenses by category, income by source (falls back to category).",
+  "cases": [
+    {
+      "name": "empty",
+      "input": [],
+      "expected": {
+        "income": 0,
+        "expense": 0,
+        "net": 0,
+        "byCategory": {},
+        "bySource": {}
+      }
+    },
+    {
+      "name": "mixed",
+      "input": [
+        {
+          "type": "income",
+          "category": "salary",
+          "amount": 1000,
+          "source": "Acme"
+        },
+        {
+          "type": "income",
+          "category": "gift",
+          "amount": 50,
+          "source": null
+        },
+        {
+          "type": "expense",
+          "category": "food",
+          "amount": 30,
+          "source": null
+        },
+        {
+          "type": "expense",
+          "category": "food",
+          "amount": 20,
+          "source": null
+        },
+        {
+          "type": "expense",
+          "category": "rent",
+          "amount": 500,
+          "source": null
+        }
+      ],
+      "expected": {
+        "income": 1050,
+        "expense": 550,
+        "net": 500,
+        "byCategory": {
+          "food": 50,
+          "rent": 500
+        },
+        "bySource": {
+          "Acme": 1000,
+          "gift": 50
+        }
+      }
+    },
+    {
+      "name": "overspending goes negative",
+      "input": [
+        {
+          "type": "income",
+          "category": "salary",
+          "amount": 100,
+          "source": null
+        },
+        {
+          "type": "expense",
+          "category": "fun",
+          "amount": 150,
+          "source": null
+        }
+      ],
+      "expected": {
+        "income": 100,
+        "expense": 150,
+        "net": -50,
+        "byCategory": {
+          "fun": 150
+        },
+        "bySource": {
+          "salary": 100
+        }
+      }
+    }
+  ]
+}

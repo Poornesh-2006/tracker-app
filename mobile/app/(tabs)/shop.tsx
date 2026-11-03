@@ -5,6 +5,7 @@ import { Screen } from '@/components/Screen';
 import { getShopItems, getUserRank, purchaseReward, type ShopItem } from '@/services/gamification-service';
 import { LOCAL_USER_ID } from '@/constants/gamification';
 import { spacing } from '@/constants/theme';
+import { errorMessage } from '@/utils/helpers';
 
 export default function ShopScreen() {
   const theme = useTheme();
@@ -39,7 +40,7 @@ export default function ShopScreen() {
       Alert.alert(result.success ? 'Reward purchased' : 'Cannot purchase reward', result.message);
       if (result.success) await load();
     } catch (error) {
-      Alert.alert('Purchase failed', error instanceof Error ? error.message : 'Please try again.');
+      Alert.alert('Purchase failed', errorMessage(error, 'Please try again.'));
     } finally {
       setBuying(null);
     }

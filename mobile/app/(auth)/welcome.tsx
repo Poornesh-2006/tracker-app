@@ -3,7 +3,6 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 're
 import { Button, HelperText, Text, TextInput, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore, MIN_PASSWORD_LENGTH } from '@/stores/auth';
 import { GlassCard } from '@/components/GlassCard';
 import { palette, radii, spacing } from '@/constants/theme';
@@ -32,15 +31,7 @@ export default function WelcomeScreen() {
   };
 
   return (
-    <View style={styles.root}>
-      <LinearGradient
-        colors={
-          theme.dark
-            ? [palette.warmBlack, '#3A2A22', palette.warmBlack]
-            : [palette.orchidWhite, '#FFE8DC', palette.orchidWhite]
-        }
-        style={StyleSheet.absoluteFill}
-      />
+    <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
       <SafeAreaView style={styles.flex}>
         <KeyboardAvoidingView
           style={styles.flex}
@@ -59,7 +50,7 @@ export default function WelcomeScreen() {
             <GlassCard contentStyle={styles.form}>
               <Text style={[styles.formTitle, { color: ink }]}>Create a passcode</Text>
               <Text style={[styles.formHint, { color: muted }]}>
-                AES-256 encryption. If you forget it, encrypted data cannot be recovered.
+                Locks the app and encrypts medical data with AES-256. If you forget it, encrypted data cannot be recovered.
               </Text>
 
               <TextInput
@@ -133,7 +124,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     backgroundColor: palette.vermillion,
   },
-  title: { fontSize: 34, fontWeight: '800', letterSpacing: 1 },
+  title: { fontSize: 30, fontWeight: '700', letterSpacing: 0.5 },
   subtitle: { textAlign: 'center', marginTop: 8, fontSize: 14, lineHeight: 20, maxWidth: 280 },
   form: { gap: 2 },
   formTitle: { fontSize: 18, fontWeight: '700' },

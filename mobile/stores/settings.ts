@@ -13,6 +13,14 @@ interface SettingsState {
   setSyncEnabled: (enabled: boolean) => Promise<void>;
 }
 
+async function persist(key: keyof AppSettings, value: string): Promise<void> {
+  try {
+    await setSetting(key, value);
+  } catch (e) {
+    console.error(`Saving setting "${key}" failed:`, e);
+  }
+}
+
 export const useSettingsStore = create<SettingsState>((set) => ({
   theme: 'system',
   units: 'metric',
@@ -35,18 +43,19 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     }
   },
 
+  // Optimistic: the UI updates even if persisting fails (logged; retried on next change).
   setTheme: async (theme) => {
-    await setSetting('theme', theme);
     set({ theme });
+    await persist('theme', theme);
   },
 
   setUnits: async (units) => {
-    await setSetting('units', units);
     set({ units });
+    await persist('units', units);
   },
 
   setSyncEnabled: async (enabled) => {
-    await setSetting('syncEnabled', String(enabled));
     set({ syncEnabled: enabled });
+    await persist('syncEnabled', String(enabled));
   },
 }));

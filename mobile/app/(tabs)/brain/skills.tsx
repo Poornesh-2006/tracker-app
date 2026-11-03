@@ -26,9 +26,9 @@ import {
   listMarks,
   listSkills,
 } from '@/services/education-service';
-import { todayStr } from '@/constants/metrics';
 import { palette, radii } from '@/constants/theme';
 import type { EducationMark, Skill } from '@/types';
+import { todayStr } from '@/utils/dates';
 
 export default function SkillsScreen() {
   const theme = useTheme();

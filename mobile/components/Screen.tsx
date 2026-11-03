@@ -55,8 +55,8 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
   },
   headerText: { flex: 1, paddingRight: 12 },
-  title: { fontSize: 32, fontWeight: '900', letterSpacing: -1.2 },
-  subtitle: { fontSize: 13, fontWeight: '600', marginTop: 5, opacity: 0.72, letterSpacing: 0.2 },
+  title: { fontSize: 28, fontWeight: '700', letterSpacing: -0.5 },
+  subtitle: { fontSize: 14, marginTop: 4 },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: spacing.md, paddingBottom: 140 },
 });

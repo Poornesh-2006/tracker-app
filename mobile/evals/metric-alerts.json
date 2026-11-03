@@ -1,0 +1,118 @@
+{
+  "fn": "checkMetricsAlerts",
+  "description": "Alerts from the latest daily metrics row only: resting HR > 90, sleep < 6h, stress >= 8.",
+  "cases": [
+    {
+      "name": "elevated HR",
+      "input": [
+        {
+          "heartRate": 95
+        }
+      ],
+      "expected": [
+        {
+          "level": "high",
+          "title": "Elevated resting heart rate"
+        }
+      ]
+    },
+    {
+      "name": "HR 90 is fine",
+      "input": [
+        {
+          "heartRate": 90
+        }
+      ],
+      "expected": []
+    },
+    {
+      "name": "short sleep",
+      "input": [
+        {
+          "sleepHours": 5.5
+        }
+      ],
+      "expected": [
+        {
+          "level": "low",
+          "title": "Short sleep"
+        }
+      ]
+    },
+    {
+      "name": "6h sleep is fine",
+      "input": [
+        {
+          "sleepHours": 6
+        }
+      ],
+      "expected": []
+    },
+    {
+      "name": "high stress",
+      "input": [
+        {
+          "stress": 8
+        }
+      ],
+      "expected": [
+        {
+          "level": "high",
+          "title": "High stress"
+        }
+      ]
+    },
+    {
+      "name": "stress 7 is fine",
+      "input": [
+        {
+          "stress": 7
+        }
+      ],
+      "expected": []
+    },
+    {
+      "name": "only latest row counts",
+      "input": [
+        {
+          "heartRate": 120,
+          "stress": 10
+        },
+        {
+          "heartRate": 70,
+          "stress": 2
+        }
+      ],
+      "expected": []
+    },
+    {
+      "name": "everything at once",
+      "input": [
+        {
+          "heartRate": 100,
+          "sleepHours": 4,
+          "stress": 9
+        }
+      ],
+      "expected": [
+        {
+          "level": "high",
+          "title": "Elevated resting heart rate"
+        },
+        {
+          "level": "low",
+          "title": "Short sleep"
+        },
+        {
+          "level": "high",
+          "title": "High stress"
+        }
+      ]
+    },
+    {
+      "name": "no data",
+      "input": [],
+      "expected": []
+    }
+  ]
+}

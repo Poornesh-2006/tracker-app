@@ -1,10 +1,10 @@
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Text, useTheme } from 'react-native-paper';
+import { useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
 import { Screen } from '@/components/Screen';
-import { GlassCard } from '@/components/GlassCard';
-import { palette, radii } from '@/constants/theme';
+import { HubRow } from '@/components/HubRow';
+import { mutedOn } from '@/constants/theme';
 
 type IconName = keyof typeof MaterialCommunityIcons.glyphMap;
 
@@ -61,8 +61,7 @@ const SECTIONS: {
 export default function BrainHubScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const ink = theme.dark ? palette.orchidWhite : palette.warmBlack;
-  const muted = theme.dark ? palette.chromeWhite : palette.masala;
+  const muted = mutedOn(theme.dark);
 
   return (
     <Screen
@@ -75,21 +74,13 @@ export default function BrainHubScreen() {
       }>
       <View style={styles.list}>
         {SECTIONS.map((section) => (
-          <Pressable
+          <HubRow
             key={section.href}
+            title={section.title}
+            subtitle={section.subtitle}
+            icon={section.icon}
             onPress={() => router.push(section.href as Href)}
-            style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1 }]}>
-            <GlassCard contentStyle={styles.card}>
-              <View style={[styles.iconWrap, { backgroundColor: palette.vermillion + '18' }]}>
-                <MaterialCommunityIcons name={section.icon} size={24} color={palette.vermillion} />
-              </View>
-              <View style={styles.text}>
-                <Text style={[styles.title, { color: ink }]}>{section.title}</Text>
-                <Text style={[styles.subtitle, { color: muted }]}>{section.subtitle}</Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={22} color={muted} />
-            </GlassCard>
-          </Pressable>
+          />
         ))}
       </View>
     </Screen>
@@ -98,16 +89,4 @@ export default function BrainHubScreen() {
 
 const styles = StyleSheet.create({
   list: { gap: 10 },
-  card: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16 },
-  iconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: radii.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  text: { flex: 1 },
-  title: { fontSize: 16, fontWeight: '800' },
-  subtitle: { fontSize: 12, marginTop: 2, lineHeight: 16 },
 });

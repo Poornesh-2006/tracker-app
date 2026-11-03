@@ -1,20 +1,37 @@
-import { getDb } from './database';
+import { all, first, run } from './db';
 import { getSupabase, isSupabaseConfigured } from './supabase';
-import { getDailyMetrics, listDailyMetricsBetween } from './metrics-service';
-import { listFoodByDate, listFoodBetween } from './meal-service';
-import { listWorkouts, listWorkoutsForDate } from './workout-service';
+import { getDailyMetrics } from './metrics-service';
+import { listFoodByDate } from './meal-service';
+import { listWorkoutsForDate } from './workout-service';
+import { getSyncOwner, setSyncOwner } from './settings-service';
 import type { DailyMetricsRow, MealsRow, WorkoutsRow } from '@/types/supabase';
 import type { DailyMetrics, FoodLogEntry, WorkoutEntry } from '@/types';
-import type { Database } from '@/types/supabase';
+import { errorMessage } from '@/utils/helpers';
+import { enqueueDay, type SyncKind } from './sync-queue';
+import { todayStr } from '@/utils/dates';
 
-type SyncKind = 'daily_metrics' | 'meal' | 'workout';
+/**
+ * Sync model: the queue holds "this day changed" markers, not row snapshots.
+ * Write services (meal/workout/metrics) enqueue the affected day(s) on every
+ * add/update/delete via ./sync-queue; syncLatest/syncAll add today/all history.
+ * Pushing a marker reads the day's *current* local data and replaces that day
+ * remotely (upsert for metrics; delete + insert for meals/workouts). So:
+ *  - re-syncing never creates duplicates,
+ *  - local edits/deletes propagate,
+ *  - a failed push is retried later with fresh data.
+ */
+export type { SyncKind };
+export { enqueueDay };
+const KINDS: SyncKind[] = ['daily_metrics', 'meals', 'workouts'];
 
-interface SyncQueueRow {
+interface QueueRow {
   id: number;
+  kind: string;
   payload: string;
-  kind: SyncKind;
-  created_at: string;
 }
+
+/** Shape sent to Supabase (server fills user_id/timestamps). */
+type Outgoing<T> = Omit<T, 'user_id' | 'created_at' | 'last_updated'>;
 
 export interface SyncResult {
   pushed: number;
@@ -22,15 +39,7 @@ export interface SyncResult {
   error: string | null;
 }
 
-function today(): string {
-  const t = new Date();
-  const y = t.getFullYear();
-  const m = String(t.getMonth() + 1).padStart(2, '0');
-  const d = String(t.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-function toMetricsRow(m: DailyMetrics): Omit<DailyMetricsRow, 'user_id'> {
+export function toMetricsRow(m: DailyMetrics): Outgoing<DailyMetricsRow> {
   return {
     metric_date: m.date,
     resting_heart_rate_bpm: m.heartRate,
@@ -43,19 +52,11 @@ function toMetricsRow(m: DailyMetrics): Omit<DailyMetricsRow, 'user_id'> {
   };
 }
 
-function toMealRow(f: FoodLogEntry): Omit<MealsRow, 'user_id'> {
+export function toMealRow(f: FoodLogEntry): Outgoing<MealsRow> {
   return {
     meal_date: f.date,
     meal_type: f.mealType,
-    food_items: [
-      {
-        name: f.name,
-        calories: f.calories,
-        protein: f.protein,
-        carbs: f.carbs,
-        fat: f.fat,
-      },
-    ],
+    food_items: [{ name: f.name, calories: f.calories, protein: f.protein, carbs: f.carbs, fat: f.fat }],
     total_calories: f.calories,
     total_protein_g: f.protein,
     total_carbs_g: f.carbs,
@@ -65,7 +66,7 @@ function toMealRow(f: FoodLogEntry): Omit<MealsRow, 'user_id'> {
   };
 }
 
-function toWorkoutRow(w: WorkoutEntry): Omit<WorkoutsRow, 'user_id'> {
+export function toWorkoutRow(w: WorkoutEntry): Outgoing<WorkoutsRow> {
   return {
     workout_date: w.date,
     workout_name: w.name,
@@ -76,161 +77,100 @@ function toWorkoutRow(w: WorkoutEntry): Omit<WorkoutsRow, 'user_id'> {
   };
 }
 
-async function enqueue(kind: SyncKind, payload: object): Promise<void> {
-  const db = await getDb();
-  await db.runAsync(
-    `INSERT INTO sync_queue (payload, kind) VALUES (?, ?)`,
-    JSON.stringify(payload),
-    kind,
-  );
-}
-
-export async function enqueueDailyMetrics(date: string): Promise<void> {
-  const m = await getDailyMetrics(date);
-  if (!m) return;
-  await enqueue('daily_metrics', toMetricsRow(m));
-}
-
-export async function enqueueMeals(date: string): Promise<void> {
-  const meals = await listFoodByDate(date);
-  for (const meal of meals) {
-    await enqueue('meal', toMealRow(meal));
-  }
-}
-
-export async function enqueueWorkouts(date: string): Promise<void> {
-  const workouts = await listWorkoutsForDate(date);
-  for (const w of workouts) {
-    await enqueue('workout', toWorkoutRow(w));
-  }
-}
-
 export async function enqueueAllHistory(): Promise<void> {
-  const db = await getDb();
-  const from = await db.getFirstAsync<{ min: string | null }>(
-    `SELECT MIN(date) AS min FROM (
-       SELECT date FROM daily_metrics
-       UNION SELECT date FROM food_log
-       UNION SELECT date FROM workouts
-     )`,
-  );
-  const start = from?.min ?? today();
-  const end = today();
-
-  const metrics = await listDailyMetricsBetween(start, end);
-  for (const m of metrics) await enqueue('daily_metrics', toMetricsRow(m));
-
-  const meals = await listFoodBetween(start, end);
-  for (const meal of meals) await enqueue('meal', toMealRow(meal));
-
-  const workouts = await listWorkouts(10000);
-  for (const w of workouts) await enqueue('workout', toWorkoutRow(w));
-}
-
-async function dequeueNext(): Promise<SyncQueueRow | null> {
-  const db = await getDb();
-  return db.getFirstAsync<SyncQueueRow>(
-    `SELECT * FROM sync_queue ORDER BY id ASC LIMIT 1`,
-  );
-}
-
-async function removeFromQueue(id: number): Promise<void> {
-  const db = await getDb();
-  await db.runAsync('DELETE FROM sync_queue WHERE id = ?', id);
+  const tables = [
+    ['daily_metrics', 'daily_metrics'],
+    ['meals', 'food_log'],
+    ['workouts', 'workouts'],
+  ] as const;
+  for (const [kind, table] of tables) {
+    const rows = await all<{ date: string }>(`SELECT DISTINCT date FROM ${table} ORDER BY date ASC`);
+    for (const { date } of rows) await enqueueDay(kind, date);
+  }
 }
 
 export async function queueLength(): Promise<number> {
-  const db = await getDb();
-  const row = await db.getFirstAsync<{ count: number }>(
-    `SELECT COUNT(*) AS count FROM sync_queue`,
-  );
+  const row = await first<{ count: number }>(`SELECT COUNT(*) AS count FROM sync_queue`);
   return row?.count ?? 0;
 }
 
-async function currentUserId(): Promise<string | null> {
+/** Throws on a remote error so the marker stays queued. */
+async function pushDay(kind: string, date: string, userId: string): Promise<void> {
   const client = getSupabase();
-  if (!client) return null;
-  const { data, error } = await client.auth.getUser();
-  if (error || !data.user) return null;
-  return data.user.id;
-}
+  if (!client) throw new Error('Supabase is not configured.');
+  const check = ({ error }: { error: { message: string } | null }) => {
+    if (error) throw new Error(error.message);
+  };
 
-async function pushRow(row: SyncQueueRow, userId: string): Promise<boolean> {
-  const client = getSupabase();
-  if (!client) return false;
-
-  const payload = JSON.parse(row.payload) as Record<string, unknown>;
-
-  switch (row.kind) {
+  switch (kind) {
     case 'daily_metrics': {
-      const { error } = await client
-        .from('daily_metrics')
-        .upsert(
-          { ...payload, user_id: userId } as never,
-          { onConflict: 'user_id,metric_date' },
-        );
-      return !error;
+      const m = await getDailyMetrics(date);
+      if (!m) return;
+      check(
+        await client
+          .from('daily_metrics')
+          .upsert({ ...toMetricsRow(m), user_id: userId }, { onConflict: 'user_id,metric_date' }),
+      );
+      return;
     }
-    case 'meal': {
-      const { error } = await client
-        .from('meals')
-        .insert({ ...payload, user_id: userId } as never);
-      return !error;
+    case 'meals': {
+      const rows = (await listFoodByDate(date)).map((f) => ({ ...toMealRow(f), user_id: userId }));
+      check(await client.from('meals').delete().eq('user_id', userId).eq('meal_date', date));
+      if (rows.length) check(await client.from('meals').insert(rows));
+      return;
     }
-    case 'workout': {
-      const { error } = await client
-        .from('workouts')
-        .insert({ ...payload, user_id: userId } as never);
-      return !error;
+    case 'workouts': {
+      const rows = (await listWorkoutsForDate(date)).map((w) => ({ ...toWorkoutRow(w), user_id: userId }));
+      check(await client.from('workouts').delete().eq('user_id', userId).eq('workout_date', date));
+      if (rows.length) check(await client.from('workouts').insert(rows));
+      return;
     }
     default:
-      return false;
+      // Unknown/legacy marker (e.g. pre-day-sync 'meal' rows): drop it rather than block the queue.
+      return;
   }
 }
 
 export async function flushQueue(maxItems = 100): Promise<SyncResult> {
-  if (!isSupabaseConfigured()) {
+  const client = getSupabase();
+  if (!client || !isSupabaseConfigured()) {
     return { pushed: 0, remaining: await queueLength(), error: 'Supabase is not configured.' };
   }
-
-  const userId = await currentUserId();
-  if (!userId) {
+  const { data, error: userError } = await client.auth.getUser();
+  const userId = data.user?.id;
+  if (userError || !userId) {
+    return { pushed: 0, remaining: await queueLength(), error: 'Sign in to sync your data.' };
+  }
+  const owner = await getSyncOwner();
+  if (owner && owner !== userId) {
     return {
       pushed: 0,
       remaining: await queueLength(),
-      error: 'Sign in to sync your data.',
+      error: 'Data on this phone belongs to another account. Sign in with that account, or reset the app to use this one.',
     };
   }
+  if (!owner) await setSyncOwner(userId); // first sync binds local data to this account
 
+  const queue = await all<QueueRow>(`SELECT id, kind, payload FROM sync_queue ORDER BY id ASC LIMIT ?`, maxItems);
   let pushed = 0;
   let error: string | null = null;
-
-  for (let i = 0; i < maxItems; i++) {
-    const row = await dequeueNext();
-    if (!row) break;
+  for (const item of queue) {
     try {
-      const ok = await pushRow(row, userId);
-      if (ok) {
-        await removeFromQueue(row.id);
-        pushed++;
-      } else {
-        error = 'Supabase rejected the write. Check RLS policies and table schema.';
-        break;
-      }
+      const { date } = JSON.parse(item.payload) as { date?: string };
+      if (date) await pushDay(item.kind, date, userId);
+      await run(`DELETE FROM sync_queue WHERE id = ?`, item.id);
+      pushed++;
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Sync failed.';
-      break;
+      error = errorMessage(e, 'Sync failed.');
+      break; // keep order; retry from here next time
     }
   }
-
   return { pushed, remaining: await queueLength(), error };
 }
 
 export async function syncLatest(): Promise<SyncResult> {
-  const date = today();
-  await enqueueDailyMetrics(date);
-  await enqueueMeals(date);
-  await enqueueWorkouts(date);
+  const date = todayStr();
+  for (const kind of KINDS) await enqueueDay(kind, date);
   return flushQueue();
 }
 

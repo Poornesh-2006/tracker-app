@@ -18,8 +18,8 @@ import { Screen } from '@/components/Screen';
 import { EmptyState } from '@/components/EmptyState';
 import { DateField } from '@/components/DateField';
 import { NumberField } from '@/components/NumberField';
-import { formatDate, INTENSITY_LABELS, todayStr } from '@/constants/metrics';
-import { WORKOUT_TYPES } from '@/utils/constants';
+import { INTENSITY_LABELS } from '@/constants/metrics';
+import { WORKOUT_TYPES } from '@/constants/workout-calculations';
 import { summarizeWorkoutsWeek } from '@/utils/calculations';
 import { useDataStore } from '@/stores/data';
 import { addWorkout, deleteWorkout, updateWorkout } from '@/services/workout-service';
@@ -27,6 +27,7 @@ import { GlassCard } from '@/components/GlassCard';
 import { palette, radii } from '@/constants/theme';
 import { validateNumber } from '@/utils/validators';
 import type { WorkoutEntry, WorkoutInput } from '@/types';
+import { formatDate, todayStr } from '@/utils/dates';
 
 export default function WorkoutsScreen() {
   const theme = useTheme();

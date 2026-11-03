@@ -15,8 +15,8 @@ import { GlassCard } from '@/components/GlassCard';
 import { NumberField } from '@/components/NumberField';
 import { MetroRouteMap } from '@/components/MetroRouteMap';
 import { createTrip, type StopInput } from '@/services/travel-service';
-import { todayStr } from '@/constants/metrics';
 import { palette, radii } from '@/constants/theme';
+import { todayStr } from '@/utils/dates';
 
 const LINE_COLORS = ['#4EA8DE', '#EB5E28', '#2A9D8F', '#9B5DE5', '#F4A261'];
 

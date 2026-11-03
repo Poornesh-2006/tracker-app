@@ -21,3 +21,12 @@ export const DEFAULT_SHOP_ITEMS = [
   ['movie-night', 'Movie Night', 'Redeem one movie night.', '🍿', 750, 3],
   ['legend-badge', 'Legendary Badge', 'A badge for your profile.', '🏆', 1500, 5],
 ] as const;
+
+export type PointReason = 'workout' | 'meal' | 'metrics';
+
+/** Base points per logged activity (before rank multiplier) and how many per day count. */
+export const POINT_RULES: Record<PointReason, { points: number; dailyCap: number }> = {
+  workout: { points: 50, dailyCap: 2 },
+  meal: { points: 10, dailyCap: 4 },
+  metrics: { points: 20, dailyCap: 1 },
+};

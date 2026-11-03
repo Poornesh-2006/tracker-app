@@ -12,6 +12,7 @@ import {
   isGemmaAvailable,
 } from '@/services/gemma-api';
 import { palette, radii } from '@/constants/theme';
+import { errorMessage } from '@/utils/helpers';
 
 export default function InsightsScreen() {
   const theme = useTheme();
@@ -42,7 +43,7 @@ export default function InsightsScreen() {
     try {
       setAdvice(await getHealthAdvice(metrics));
     } catch (e) {
-      setAdvice(e instanceof Error ? e.message : 'Could not reach local AI.');
+      setAdvice(errorMessage(e, 'Could not reach local AI.'));
     } finally {
       setBusy(false);
     }
@@ -58,7 +59,7 @@ export default function InsightsScreen() {
     try {
       setAdvice(await explainBloodTest(latest.testType, latest.value, latest.unit));
     } catch (e) {
-      setAdvice(e instanceof Error ? e.message : 'Could not reach local AI.');
+      setAdvice(errorMessage(e, 'Could not reach local AI.'));
     } finally {
       setBusy(false);
     }

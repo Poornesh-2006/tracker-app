@@ -1,212 +1,207 @@
 import CryptoJS from 'crypto-js';
 import { gcm } from '@noble/ciphers/aes';
+import { pbkdf2 } from '@noble/hashes/pbkdf2';
+import { sha256 as sha256Hash } from '@noble/hashes/sha256';
 
 import { keyValueStore } from '@/services/key-value-store';
 
-const LEGACY_KEY_STORE = 'lifos.key';
-const LEGACY_KEY_VERIFIER = 'lifos.verifier';
-const AUTH_SALT = 'lifos.auth.salt';
-const AUTH_HASH = 'lifos.auth.hash';
-const KEY_STORE = 'lifos.key.v2';
+/**
+ * Passcode -> PBKDF2-SHA256 (salted) -> 256-bit AES-GCM key.
+ *
+ * The key lives in memory only while unlocked. Secure storage holds just the
+ * salt and a verifier (SHA-256 of the key), so reading the keychain alone
+ * can't decrypt anything without the passcode.
+ *
+ * Older installs are migrated transparently on unlock:
+ *  - v2: stored the derived key itself (AUTH_HASH / KEY_STORE). Same key, so
+ *        only the stored secrets are swapped for a verifier.
+ *  - v1: key = SHA-256(passcode), AES-CBC. Data is re-encrypted.
+ */
+/** Single value "<salt hex>:<verifier hex>" so the pair is written atomically. */
+const AUTH = 'lifos.auth.v3';
+const V2_SALT = 'lifos.auth.salt';
+const V2_HASH = 'lifos.auth.hash';
+const V2_KEY = 'lifos.key.v2';
+const V1_KEY = 'lifos.key';
+const V1_VERIFIER = 'lifos.verifier';
 
 const PBKDF2_ITERATIONS = 100_000;
 const KEY_BYTES = 32;
-const GCM_NONCE_BYTES = 12;
-const GCM_TAG_BYTES = 16;
+const NONCE_BYTES = 12;
+const TAG_BYTES = 16;
 
-type Reencryptor = (oldKeyHex: string, newKeyHex: string) => Promise<void>;
+/** Re-encrypts every encrypted record from one key to another. Must be atomic. */
+export type Reencryptor = (oldKeyHex: string, newKeyHex: string) => Promise<void>;
 
-export interface PasswordHash {
-  salt: string;
-  hash: string;
-}
-
-export interface EncryptedPayload {
-  ciphertext: string;
-  iv: string;
-  tag: string;
-  algorithm: 'AES-256-GCM';
-}
-
-function wordArrayToBytes(value: CryptoJS.lib.WordArray): Uint8Array {
-  const words = value.words;
-  const bytes = new Uint8Array(value.sigBytes);
-  for (let i = 0; i < value.sigBytes; i++) {
-    bytes[i] = (words[i >>> 2] >>> (24 - (i % 4) * 8)) & 0xff;
-  }
-  return bytes;
-}
-
-function bytesToWordArray(bytes: Uint8Array): CryptoJS.lib.WordArray {
-  const words: number[] = [];
-  for (let i = 0; i < bytes.length; i++) {
-    words[i >>> 2] = (words[i >>> 2] || 0) | (bytes[i] << (24 - (i % 4) * 8));
-  }
-  return CryptoJS.lib.WordArray.create(words, bytes.length);
-}
+const sha256 = (s: string) => CryptoJS.SHA256(s).toString(CryptoJS.enc.Hex);
 
 function bytesToHex(bytes: Uint8Array): string {
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 function hexToBytes(hex: string): Uint8Array {
   if (!/^(?:[0-9a-f]{2})+$/i.test(hex)) throw new Error('Invalid hexadecimal key or nonce.');
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < bytes.length; i++) bytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  return bytes;
+  return Uint8Array.from(hex.match(/../g)!, (h) => parseInt(h, 16));
 }
 
-function bytesToBase64(bytes: Uint8Array): string {
-  return CryptoJS.enc.Base64.stringify(bytesToWordArray(bytes));
+const bytesToBase64 = (bytes: Uint8Array) => CryptoJS.enc.Hex.parse(bytesToHex(bytes)).toString(CryptoJS.enc.Base64);
+const base64ToBytes = (b64: string) => hexToBytes(CryptoJS.enc.Base64.parse(b64).toString(CryptoJS.enc.Hex));
+
+/** Needs global crypto.getRandomValues (polyfilled on native by services/crypto-polyfill). */
+function randomBytes(n: number): Uint8Array {
+  return globalThis.crypto.getRandomValues(new Uint8Array(n));
 }
 
-function base64ToBytes(value: string): Uint8Array {
-  return wordArrayToBytes(CryptoJS.enc.Base64.parse(value));
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
 }
 
-function constantTimeEqual(left: string, right: string): boolean {
-  if (left.length !== right.length) return false;
-  let difference = 0;
-  for (let i = 0; i < left.length; i++) difference |= left.charCodeAt(i) ^ right.charCodeAt(i);
-  return difference === 0;
+/**
+ * PBKDF2-HMAC-SHA256 via @noble/hashes: byte-identical to the previous CryptoJS
+ * output (UTF-8 password, hex salt), but several times faster on Hermes, so
+ * existing verifiers keep working with no migration.
+ */
+export function deriveKey(password: string, saltHex: string): string {
+  return bytesToHex(
+    pbkdf2(sha256Hash, new TextEncoder().encode(password), hexToBytes(saltHex), {
+      c: PBKDF2_ITERATIONS,
+      dkLen: KEY_BYTES,
+    }),
+  );
 }
 
-function randomHex(bytes: number): string {
-  return bytesToHex(wordArrayToBytes(CryptoJS.lib.WordArray.random(bytes)));
+/** Domain-separated so the verifier can never be used as the key. */
+const verifierFor = (keyHex: string) => sha256(`lifos-verifier:${keyHex}`);
+
+/** Format: v2:<iv hex>:<tag hex>:<ciphertext base64> */
+export function encryptWithKey(plaintext: string, keyHex: string): string {
+  const iv = randomBytes(NONCE_BYTES);
+  const sealed = gcm(hexToBytes(keyHex), iv).encrypt(new TextEncoder().encode(plaintext));
+  const ct = sealed.slice(0, -TAG_BYTES);
+  const tag = sealed.slice(-TAG_BYTES);
+  return `v2:${bytesToHex(iv)}:${bytesToHex(tag)}:${bytesToBase64(ct)}`;
 }
 
-export function hashPasswordPBKDF2(password: string, salt = randomHex(16)): PasswordHash {
-  const derived = CryptoJS.PBKDF2(password, CryptoJS.enc.Hex.parse(salt), {
-    keySize: KEY_BYTES / 4,
-    iterations: PBKDF2_ITERATIONS,
-    hasher: CryptoJS.algo.SHA256,
-  });
-  return { salt, hash: derived.toString(CryptoJS.enc.Hex) };
-}
-
-export function verifyPasswordPBKDF2(password: string, salt: string, storedHash: string): boolean {
-  const { hash } = hashPasswordPBKDF2(password, salt);
-  return constantTimeEqual(hash, storedHash);
-}
-
-function legacyKey(password: string): string {
-  return CryptoJS.SHA256(password).toString(CryptoJS.enc.Hex);
-}
-
-function legacyVerifier(keyHex: string): string {
-  return CryptoJS.SHA256(keyHex).toString(CryptoJS.enc.Hex);
-}
-
-function encodePayload(payload: EncryptedPayload): string {
-  return `v2:${payload.iv}:${payload.tag}:${payload.ciphertext}`;
-}
-
-function decodePayload(payload: string): EncryptedPayload | null {
-  const [version, iv, tag, ciphertext] = payload.split(':');
-  if (version !== 'v2' || !iv || !tag || !ciphertext) return null;
-  if (iv.length !== GCM_NONCE_BYTES * 2 || tag.length !== GCM_TAG_BYTES * 2) {
+export function decryptWithKey(payload: string, keyHex: string): string {
+  const parts = payload.split(':');
+  if (parts[0] !== 'v2') return decryptV1(payload, keyHex);
+  const [, iv, tag, ct] = parts;
+  if (iv?.length !== NONCE_BYTES * 2 || tag?.length !== TAG_BYTES * 2 || !ct) {
     throw new Error('Malformed encrypted payload.');
   }
-  return { algorithm: 'AES-256-GCM', iv, tag, ciphertext };
-}
-
-function encryptGcm(plaintext: string, keyHex: string): string {
-  const key = hexToBytes(keyHex);
-  const iv = hexToBytes(randomHex(GCM_NONCE_BYTES));
-  const encrypted = gcm(key, iv).encrypt(new TextEncoder().encode(plaintext));
-  const ciphertext = encrypted.slice(0, encrypted.length - GCM_TAG_BYTES);
-  const tag = encrypted.slice(encrypted.length - GCM_TAG_BYTES);
-  return encodePayload({
-    algorithm: 'AES-256-GCM',
-    iv: bytesToHex(iv),
-    tag: bytesToHex(tag),
-    ciphertext: bytesToBase64(ciphertext),
-  });
-}
-
-function decryptGcm(payload: EncryptedPayload, keyHex: string): string {
   try {
-    const key = hexToBytes(keyHex);
-    const iv = hexToBytes(payload.iv);
-    const ciphertext = base64ToBytes(payload.ciphertext);
-    const tag = hexToBytes(payload.tag);
-    const plaintext = gcm(key, iv).decrypt(new Uint8Array([...ciphertext, ...tag]));
-    return new TextDecoder().decode(plaintext);
+    const sealed = new Uint8Array([...base64ToBytes(ct), ...hexToBytes(tag)]);
+    return new TextDecoder().decode(gcm(hexToBytes(keyHex), hexToBytes(iv)).decrypt(sealed));
   } catch {
     throw new Error('Encrypted data failed authentication and may have been tampered with.');
   }
 }
 
-function decryptLegacy(payload: string, keyHex: string): string {
-  const [ivHex, ctBase64] = payload.split(':');
-  if (!ivHex || !ctBase64) throw new Error('Malformed encrypted payload.');
-  const iv = CryptoJS.enc.Hex.parse(ivHex);
-  const keyWord = CryptoJS.enc.Hex.parse(keyHex);
-  const cipherParams = CryptoJS.lib.CipherParams.create({
-    ciphertext: CryptoJS.enc.Base64.parse(ctBase64),
-  });
-  const bytes = CryptoJS.AES.decrypt(cipherParams, keyWord, { iv });
-  const plaintext = bytes.toString(CryptoJS.enc.Utf8);
+/** v1 format: <iv hex>:<AES-CBC ciphertext base64>. Read-only, for migration. */
+function decryptV1(payload: string, keyHex: string): string {
+  const [ivHex, ctB64] = payload.split(':');
+  if (!ivHex || !ctB64) throw new Error('Malformed encrypted payload.');
+  const plaintext = CryptoJS.AES.decrypt(
+    CryptoJS.lib.CipherParams.create({ ciphertext: CryptoJS.enc.Base64.parse(ctB64) }),
+    CryptoJS.enc.Hex.parse(keyHex),
+    { iv: CryptoJS.enc.Hex.parse(ivHex) },
+  ).toString(CryptoJS.enc.Utf8);
   if (!plaintext) throw new Error('Legacy encrypted data could not be decrypted.');
   return plaintext;
 }
 
+const LEGACY_KEYS = [V2_SALT, V2_HASH, V2_KEY, V1_KEY, V1_VERIFIER];
+
+async function saveSecrets(saltHex: string, keyHex: string): Promise<void> {
+  await keyValueStore.setItem(AUTH, `${saltHex}:${verifierFor(keyHex)}`);
+  await Promise.all(LEGACY_KEYS.map((k) => keyValueStore.removeItem(k)));
+}
+
+const get = (keys: string[]) => Promise.all(keys.map((k) => keyValueStore.getItem(k)));
+
+/** New "<salt>:<verifier>" written before a passcode change re-encrypts, removed after. */
+const PENDING = 'lifos.auth.pending';
+
+/** True if the key decrypts existing data (or there is none). */
+export type KeyProbe = (keyHex: string) => Promise<boolean>;
+
+/** Derived key if `password` matches a "<salt>:<verifier>" entry, else null. */
+function keyFor(entry: string, password: string): string | null {
+  const [salt, verifier] = entry.split(':');
+  if (!salt) return null;
+  const key = deriveKey(password, salt);
+  return constantTimeEqual(verifierFor(key), verifier ?? '') ? key : null;
+}
+
 class EncryptionService {
   private key: string | null = null;
-  private reencryptor: Reencryptor | null = null;
 
   isUnlocked(): boolean {
     return this.key != null;
   }
 
-  setReencryptor(fn: Reencryptor | null): void {
-    this.reencryptor = fn;
-  }
-
   async isInitialized(): Promise<boolean> {
-    const salt = await keyValueStore.getItem(AUTH_SALT);
-    const hash = await keyValueStore.getItem(AUTH_HASH);
-    const legacyVerifierValue = await keyValueStore.getItem(LEGACY_KEY_VERIFIER);
-    return Boolean((salt && hash) || legacyVerifierValue);
+    const [auth, v2Salt, v2Hash, v1] = await get([AUTH, V2_SALT, V2_HASH, V1_VERIFIER]);
+    return Boolean(auth || (v2Salt && v2Hash) || v1);
   }
 
   async setup(password: string): Promise<void> {
-    const { salt, hash } = hashPasswordPBKDF2(password);
-    const keyHex = hash;
-    await keyValueStore.setItem(AUTH_SALT, salt);
-    await keyValueStore.setItem(AUTH_HASH, hash);
-    await keyValueStore.setItem(KEY_STORE, keyHex);
-    this.key = keyHex;
+    const salt = bytesToHex(randomBytes(16));
+    const key = deriveKey(password, salt);
+    await saveSecrets(salt, key);
+    this.key = key;
   }
 
-  async unlock(password: string): Promise<boolean> {
-    const salt = await keyValueStore.getItem(AUTH_SALT);
-    const hash = await keyValueStore.getItem(AUTH_HASH);
-    const storedKey = await keyValueStore.getItem(KEY_STORE);
+  /**
+   * `reencrypt` is only used when migrating v1 data. `probe` lets unlock finish
+   * (or roll back) a passcode change the app died in the middle of.
+   */
+  async unlock(password: string, reencrypt?: Reencryptor, probe?: KeyProbe): Promise<boolean> {
+    const [auth, pending, v2Salt, v2Hash, v1Key, v1Verifier] = await get([
+      AUTH, PENDING, V2_SALT, V2_HASH, V1_KEY, V1_VERIFIER,
+    ]);
 
-    if (salt && hash && storedKey) {
-      if (!verifyPasswordPBKDF2(password, salt, hash)) return false;
-      this.key = storedKey;
+    if (auth) {
+      const key = keyFor(auth, password);
+      if (key) {
+        if (pending && probe) {
+          if (!(await probe(key))) {
+            throw new Error('A passcode change was interrupted after your data was re-encrypted. Unlock with the new passcode.');
+          }
+          await keyValueStore.removeItem(PENDING); // change never committed: discard it
+        }
+        this.key = key;
+        return true;
+      }
+      // New passcode from an interrupted change: promote it only if the data is really under it.
+      const pendingKey = pending ? keyFor(pending, password) : null;
+      if (!pendingKey || !probe || !(await probe(pendingKey))) return false;
+      await keyValueStore.setItem(AUTH, pending!);
+      await keyValueStore.removeItem(PENDING);
+      this.key = pendingKey;
       return true;
     }
 
-    return this.unlockLegacy(password);
-  }
+    if (v2Salt && v2Hash) {
+      const key = deriveKey(password, v2Salt);
+      if (!constantTimeEqual(key, v2Hash)) return false;
+      await saveSecrets(v2Salt, key); // same key: data untouched
+      this.key = key;
+      return true;
+    }
 
-  private async unlockLegacy(password: string): Promise<boolean> {
-    const storedKey = await keyValueStore.getItem(LEGACY_KEY_STORE);
-    const storedVerifier = await keyValueStore.getItem(LEGACY_KEY_VERIFIER);
-    if (!storedKey || !storedVerifier) return false;
-    if (!constantTimeEqual(legacyVerifier(legacyKey(password)), storedVerifier)) return false;
-
-    const { salt, hash } = hashPasswordPBKDF2(password);
-    await keyValueStore.setItem(AUTH_SALT, salt);
-    await keyValueStore.setItem(AUTH_HASH, hash);
-    await keyValueStore.setItem(KEY_STORE, hash);
-    await keyValueStore.removeItem(LEGACY_KEY_STORE);
-    await keyValueStore.removeItem(LEGACY_KEY_VERIFIER);
-    this.key = hash;
-    if (this.reencryptor) await this.reencryptor(storedKey, hash);
+    if (!v1Key || !v1Verifier) return false;
+    if (!constantTimeEqual(sha256(sha256(password)), v1Verifier)) return false;
+    // Without re-encryption the v1 data would become unreadable under the new key.
+    if (!reencrypt) throw new Error('Legacy data needs re-encryption to unlock.');
+    const newSalt = bytesToHex(randomBytes(16));
+    const newKey = deriveKey(password, newSalt);
+    await reencrypt(v1Key, newKey);
+    await saveSecrets(newSalt, newKey);
+    this.key = newKey;
     return true;
   }
 
@@ -216,55 +211,41 @@ class EncryptionService {
 
   async reset(): Promise<void> {
     this.key = null;
-    await Promise.all([
-      keyValueStore.removeItem(KEY_STORE),
-      keyValueStore.removeItem(AUTH_SALT),
-      keyValueStore.removeItem(AUTH_HASH),
-      keyValueStore.removeItem(LEGACY_KEY_STORE),
-      keyValueStore.removeItem(LEGACY_KEY_VERIFIER),
-    ]);
+    await Promise.all([AUTH, PENDING, ...LEGACY_KEYS].map((k) => keyValueStore.removeItem(k)));
   }
 
-  async changePassword(currentPassword: string, newPassword: string): Promise<boolean> {
-    if (!(await this.unlock(currentPassword))) return false;
-    const oldKey = this.key;
-    if (!oldKey) return false;
-    const { salt, hash } = hashPasswordPBKDF2(newPassword);
-    if (this.reencryptor) await this.reencryptor(oldKey, hash);
-    await keyValueStore.setItem(AUTH_SALT, salt);
-    await keyValueStore.setItem(AUTH_HASH, hash);
-    await keyValueStore.setItem(KEY_STORE, hash);
-    this.key = hash;
+  /**
+   * Writes the new verifier as PENDING, re-encrypts (transactional), then
+   * promotes it. If the app dies in between, `unlock` with `probe` works out
+   * which passcode the data is under and completes or discards the change.
+   */
+  async changePassword(current: string, next: string, reencrypt: Reencryptor, probe?: KeyProbe): Promise<boolean> {
+    if (!(await this.unlock(current, reencrypt, probe)) || !this.key) return false;
+    const salt = bytesToHex(randomBytes(16));
+    const newKey = deriveKey(next, salt);
+    const entry = `${salt}:${verifierFor(newKey)}`;
+    await keyValueStore.setItem(PENDING, entry);
+    try {
+      await reencrypt(this.key, newKey);
+    } catch (e) {
+      await keyValueStore.removeItem(PENDING); // rolled back: old passcode still valid
+      throw e;
+    }
+    await keyValueStore.setItem(AUTH, entry);
+    await keyValueStore.removeItem(PENDING);
+    this.key = newKey;
     return true;
   }
 
   encrypt(plaintext: string): string {
     if (!this.key) throw new Error('App is locked. Unlock before writing data.');
-    return encryptGcm(plaintext, this.key);
+    return encryptWithKey(plaintext, this.key);
   }
 
   decrypt(payload: string): string {
     if (!this.key) throw new Error('App is locked.');
-    const parsed = decodePayload(payload);
-    return parsed ? decryptGcm(parsed, this.key) : decryptLegacy(payload, this.key);
-  }
-
-  decryptWithKey(payload: string, keyHex: string): string {
-    const parsed = decodePayload(payload);
-    return parsed ? decryptGcm(parsed, keyHex) : decryptLegacy(payload, keyHex);
-  }
-
-  encryptWithKey(plaintext: string, keyHex: string): string {
-    return encryptGcm(plaintext, keyHex);
+    return decryptWithKey(payload, this.key);
   }
 }
 
 export const encryptionService = new EncryptionService();
-
-export function encryptValue(value: string, keyHex?: string): string {
-  return keyHex ? encryptionService.encryptWithKey(value, keyHex) : encryptionService.encrypt(value);
-}
-
-export function decryptValue(encrypted: string, keyHex?: string): string {
-  return keyHex ? encryptionService.decryptWithKey(encrypted, keyHex) : encryptionService.decrypt(encrypted);
-}

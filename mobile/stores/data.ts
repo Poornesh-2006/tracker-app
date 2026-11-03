@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import type { BloodTest, DailyMetrics, FoodLogEntry, WorkoutEntry } from '@/types';
-import { todayStr } from '@/constants/metrics';
 import { listBloodTests } from '@/services/blood-test-service';
+import { encryptionService } from '@/services/encryption';
 import { caloriesForDate, listFoodByDate } from '@/services/meal-service';
 import { listRecentMetrics } from '@/services/metrics-service';
 import { listWorkouts } from '@/services/workout-service';
+import { todayStr } from '@/utils/dates';
 
 interface DataState {
   metrics: DailyMetrics[];
@@ -36,24 +37,29 @@ export const useDataStore = create<DataState>((set, get) => ({
 
   loadDashboard: async () => {
     set({ loading: true });
-    const today = todayStr();
-    const [metrics, bloodTests, workouts, food, calories] = await Promise.all([
-      listRecentMetrics(30),
-      listBloodTests(50),
-      listWorkouts(20),
-      listFoodByDate(today),
-      caloriesForDate(today),
-    ]);
-    set((s) => ({
-      metrics,
-      bloodTests,
-      workouts,
-      foodDate: today,
-      foodByDate: { ...s.foodByDate, [today]: food },
-      caloriesByDate: { ...s.caloriesByDate, [today]: calories },
-      loaded: true,
-      loading: false,
-    }));
+    try {
+      const today = todayStr();
+      const [metrics, bloodTests, workouts, food, calories] = await Promise.all([
+        listRecentMetrics(30),
+        listBloodTests(50),
+        listWorkouts(20),
+        listFoodByDate(today),
+        caloriesForDate(today),
+      ]);
+      // Locked while loading: don't repopulate decrypted data after clear().
+      if (!encryptionService.isUnlocked()) return;
+      set((s) => ({
+        metrics,
+        bloodTests,
+        workouts,
+        foodDate: today,
+        foodByDate: { ...s.foodByDate, [today]: food },
+        caloriesByDate: { ...s.caloriesByDate, [today]: calories },
+        loaded: true,
+      }));
+    } finally {
+      set({ loading: false });
+    }
   },
 
   loadFood: async (date) => {

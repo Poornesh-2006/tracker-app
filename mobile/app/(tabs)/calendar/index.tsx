@@ -8,10 +8,10 @@ import { MonthCalendar } from '@/components/MonthCalendar';
 import { GlassCard } from '@/components/GlassCard';
 import { MetroRouteMap } from '@/components/MetroRouteMap';
 import { useDataStore } from '@/stores/data';
-import { todayStr } from '@/constants/metrics';
 import { palette, radii } from '@/constants/theme';
 import { listStops, listTripDates, listTripsByDate } from '@/services/travel-service';
 import type { TravelStop, TravelTrip } from '@/types';
+import { todayStr } from '@/utils/dates';
 
 export default function CalendarScreen() {
   const theme = useTheme();

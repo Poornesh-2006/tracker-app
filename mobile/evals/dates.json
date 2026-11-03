@@ -1,0 +1,16 @@
+{
+  "fn": "dates",
+  "description": "Local-calendar date helpers. Stored dates are local YYYY-MM-DD; parsing must not shift a day through UTC.",
+  "cases": [
+    { "name": "toDateStr pads month and day", "input": { "toDateStr": [2026, 0, 5] }, "expected": "2026-01-05" },
+    { "name": "toDateStr end of year", "input": { "toDateStr": [2025, 11, 31] }, "expected": "2025-12-31" },
+    { "name": "parse leap day stays the same day", "input": { "roundTrip": "2028-02-29" }, "expected": "2028-02-29" },
+    { "name": "parse Jan 1 doesn't fall back to Dec 31", "input": { "roundTrip": "2026-01-01" }, "expected": "2026-01-01" },
+    { "name": "parse DST change day (EU/US March)", "input": { "roundTrip": "2026-03-08" }, "expected": "2026-03-08" },
+    { "name": "shortDate strips zeros", "input": { "shortDate": "2026-01-05" }, "expected": "1/5" },
+    { "name": "shortDate two digits", "input": { "shortDate": "2026-12-31" }, "expected": "12/31" },
+    { "name": "daysAgo(0) is today", "input": { "daysAgoIsToday": 0 }, "expected": true },
+    { "name": "daysAgo(1) sorts before today", "input": { "daysAgoBeforeToday": 1 }, "expected": true },
+    { "name": "daysAgo(-1) is tomorrow (after today)", "input": { "daysAgoBeforeToday": -1 }, "expected": false }
+  ]
+}

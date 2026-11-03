@@ -1,3 +1,18 @@
+/** Options shown in the workout form. Each normalizes to a key in WORKOUT_CALORIE_RATES (or the default). */
+export const WORKOUT_TYPES = [
+  'Running',
+  'Cycling',
+  'Swimming',
+  'Weight Training',
+  'Yoga',
+  'HIIT',
+  'Walking',
+  'Sports',
+  'Other',
+];
+
+const DEFAULT_CALORIE_RATE = 6;
+
 export const INTENSITY_MULTIPLIERS = {
   low: 1,
   moderate: 1.5,
@@ -22,6 +37,7 @@ export const WORKOUT_CALORIE_RATES: Record<string, number> = {
   yoga: 3,
   hiit: 15,
   strength: 7,
+  weight_training: 7,
   basketball: 11,
   soccer: 13,
   tennis: 12,
@@ -41,7 +57,7 @@ export function calculateWorkoutCalories(
   userWeight?: number,
 ): number {
   if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) return 0;
-  const baseRate = WORKOUT_CALORIE_RATES[normalizeWorkoutType(workoutType)] ?? 6;
+  const baseRate = WORKOUT_CALORIE_RATES[normalizeWorkoutType(workoutType)] ?? DEFAULT_CALORIE_RATE;
   const intensityName = intensity == null ? 'moderate' : WORKOUT_INTENSITY_MAP[intensity] ?? 'moderate';
   const multiplier = INTENSITY_MULTIPLIERS[intensityName];
   const weightMultiplier = userWeight && userWeight > 0 ? userWeight / 70 : 1;

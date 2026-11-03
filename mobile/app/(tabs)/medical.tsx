@@ -22,12 +22,13 @@ import { TrendChart } from '@/components/TrendChart';
 import { EmptyState } from '@/components/EmptyState';
 import { DateField } from '@/components/DateField';
 import { NumberField } from '@/components/NumberField';
-import { computeAlerts, formatDate, getTestTypeDef, shortDate, TEST_TYPES, todayStr } from '@/constants/metrics';
+import { computeAlerts, getTestTypeDef, TEST_TYPES } from '@/constants/metrics';
 import { matchesSearch } from '@/utils/helpers';
 import { useDataStore } from '@/stores/data';
 import { addBloodTest, deleteBloodTest, listBloodTestsByType, updateBloodTest } from '@/services/blood-test-service';
 import { palette } from '@/constants/theme';
 import type { BloodTest, BloodTestInput } from '@/types';
+import { formatDate, shortDate, todayStr } from '@/utils/dates';
 
 export default function MedicalScreen() {
   const theme = useTheme();

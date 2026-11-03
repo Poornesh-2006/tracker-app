@@ -1,0 +1,26 @@
+name: CI
+
+# Typecheck + lint + tests + evals on every push/PR, and weekly so drift
+# (e.g. dependency or date-boundary issues) is caught even without commits.
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24 # tests use built-in node:sqlite
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - run: npm run check

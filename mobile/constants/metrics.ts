@@ -90,36 +90,3 @@ export const INTENSITY_LABELS: Record<number, string> = {
   4: 'Hard',
   5: 'Very hard',
 };
-
-export function todayStr(): string {
-  const d = new Date();
-  return toDateStr(d);
-}
-
-export function toDateStr(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-export function formatDate(dateStr: string): string {
-  const [y, m, d] = dateStr.split('-');
-  const dt = new Date(Number(y), Number(m) - 1, Number(d));
-  return dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-export function shortDate(dateStr: string): string {
-  const [, m, d] = dateStr.split('-');
-  return `${Number(m)}/${Number(d)}`;
-}
-
-export function lastNDays(n: number): string[] {
-  const out: string[] = [];
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    out.push(toDateStr(d));
-  }
-  return out;
-}

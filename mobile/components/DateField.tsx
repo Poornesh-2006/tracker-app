@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Button, TextInput } from 'react-native-paper';
-import { formatDate, toDateStr, todayStr } from '@/constants/metrics';
+import { formatDate, toDateStr, todayStr } from '@/utils/dates';
 
 interface DateFieldProps {
   value: string;

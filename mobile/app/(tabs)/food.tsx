@@ -22,11 +22,12 @@ import { GlassCard } from '@/components/GlassCard';
 import { WeeklyFoodSummary } from '@/components/WeeklyFoodSummary';
 import { DateField } from '@/components/DateField';
 import { NumberField } from '@/components/NumberField';
-import { formatDate, MEAL_TYPES, todayStr } from '@/constants/metrics';
+import { MEAL_TYPES } from '@/constants/metrics';
 import { useDataStore } from '@/stores/data';
 import { addFoodLog, deleteFoodLog, updateFoodLog } from '@/services/meal-service';
 import { palette, radii } from '@/constants/theme';
 import type { FoodLogEntry, FoodLogInput, MealType } from '@/types';
+import { formatDate, todayStr } from '@/utils/dates';
 
 const MEAL_LABEL: Record<string, string> = {
   breakfast: 'Breakfast',

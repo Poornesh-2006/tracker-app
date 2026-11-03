@@ -57,13 +57,10 @@ export const keyValueStore = {
 
   async setItem(key: string, value: string): Promise<void> {
     if (useSecureStore) {
-      try {
-        await SecureStore.setItemAsync(key, value);
-        return;
-      } catch {
-        localSet(key, value);
-        return;
-      }
+      // No fallback on native: React Native has no localStorage, so swallowing the
+      // error would make setup "succeed" without saving the passcode verifier.
+      await SecureStore.setItemAsync(key, value);
+      return;
     }
     localSet(key, value);
   },

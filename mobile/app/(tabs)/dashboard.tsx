@@ -12,15 +12,16 @@ import { AlertBanner } from '@/components/AlertBanner';
 import { TrendChart } from '@/components/TrendChart';
 import { NumberField } from '@/components/NumberField';
 import { DateField } from '@/components/DateField';
-import { computeAlerts, shortDate, todayStr } from '@/constants/metrics';
+import { computeAlerts } from '@/constants/metrics';
 import { useDataStore } from '@/stores/data';
 import { upsertDailyMetrics } from '@/services/metrics-service';
-import { calculateRecoveryScore, checkHealthAlerts, generateInsights } from '@/services/ai-engine';
+import { calculateRecoveryScore, checkMetricsAlerts, generateInsights } from '@/services/ai-engine';
 import { useSettingsStore } from '@/stores/settings';
 import { syncLatest } from '@/services/sync-manager';
 import { palette, radii } from '@/constants/theme';
 import { validateNumber } from '@/utils/validators';
 import type { DailyMetrics, DailyMetricsInput } from '@/types';
+import { shortDate, todayStr } from '@/utils/dates';
 
 type ChartKey = 'recovery' | 'weight' | 'steps';
 
@@ -61,7 +62,7 @@ export default function DashboardScreen() {
   const labAlerts = computeAlerts(
     bloodTests.map((t) => ({ testType: t.testType, value: t.value, unit: t.unit, date: t.date })),
   );
-  const metricAlerts = checkHealthAlerts(metrics);
+  const metricAlerts = checkMetricsAlerts(metrics);
   const alerts = [...metricAlerts, ...labAlerts];
 
   const insights = generateInsights({ metrics, workouts });
@@ -340,10 +341,9 @@ function EditDailyMetricsModal({ visible, onDismiss, initial, onSaved }: EditDai
       sleepHours: sleep ? Number(sleep) : null,
       stress: stress ? Number(stress) : null,
       heartRate: heartRate ? Number(heartRate) : null,
-      weight: weight ? Number(weight) : null,
     });
     setAutoRecovery(computed);
-  }, [recovery, sleep, stress, heartRate, weight]);
+  }, [recovery, sleep, stress, heartRate]);
 
   const save = async () => {
     const heartRateValue = heartRate ? Number(heartRate) : null;
@@ -373,7 +373,6 @@ function EditDailyMetricsModal({ visible, onDismiss, initial, onSaved }: EditDai
         sleepHours,
         stress: stressNum,
         heartRate: heartRateValue,
-        weight: weight ? Number(weight) : null,
       });
     const input: DailyMetricsInput = {
       date,

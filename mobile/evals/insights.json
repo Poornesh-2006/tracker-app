@@ -1,0 +1,289 @@
+{
+  "fn": "generateInsights",
+  "description": "Weekly insights. This week = today and the 6 days before; last week = the 7 days before that. Rows use daysAgo instead of dates. Expected = insight titles in order.",
+  "cases": [
+    {
+      "name": "no data",
+      "input": {
+        "metrics": [],
+        "workouts": []
+      },
+      "expected": [
+        "No workouts this week"
+      ]
+    },
+    {
+      "name": "sleep improving",
+      "input": {
+        "metrics": [
+          {
+            "daysAgo": 1,
+            "sleepHours": 8
+          },
+          {
+            "daysAgo": 3,
+            "sleepHours": 8
+          },
+          {
+            "daysAgo": 8,
+            "sleepHours": 7
+          },
+          {
+            "daysAgo": 10,
+            "sleepHours": 7
+          }
+        ],
+        "workouts": []
+      },
+      "expected": [
+        "Sleep improving",
+        "No workouts this week"
+      ]
+    },
+    {
+      "name": "sleep declining",
+      "input": {
+        "metrics": [
+          {
+            "daysAgo": 9,
+            "sleepHours": 7.5
+          },
+          {
+            "daysAgo": 0,
+            "sleepHours": 6
+          }
+        ],
+        "workouts": []
+      },
+      "expected": [
+        "Sleep declining",
+        "No workouts this week"
+      ]
+    },
+    {
+      "name": "day 7 belongs to last week only (regression: windows overlapped)",
+      "input": {
+        "metrics": [
+          {
+            "daysAgo": 7,
+            "sleepHours": 6.4
+          },
+          {
+            "daysAgo": 0,
+            "sleepHours": 7
+          }
+        ],
+        "workouts": []
+      },
+      "expected": [
+        "Sleep improving",
+        "No workouts this week"
+      ]
+    },
+    {
+      "name": "workout 7 days ago is not this week (regression)",
+      "input": {
+        "metrics": [],
+        "workouts": [
+          {
+            "daysAgo": 7
+          }
+        ]
+      },
+      "expected": [
+        "No workouts this week"
+      ]
+    },
+    {
+      "name": "workout 6 days ago is this week",
+      "input": {
+        "metrics": [],
+        "workouts": [
+          {
+            "daysAgo": 6
+          }
+        ]
+      },
+      "expected": [
+        "Light training week"
+      ]
+    },
+    {
+      "name": "consistent training",
+      "input": {
+        "metrics": [],
+        "workouts": [
+          {
+            "daysAgo": 0
+          },
+          {
+            "daysAgo": 2
+          },
+          {
+            "daysAgo": 6
+          }
+        ]
+      },
+      "expected": [
+        "Consistent training"
+      ]
+    },
+    {
+      "name": "low activity",
+      "input": {
+        "metrics": [
+          {
+            "daysAgo": 1,
+            "steps": 4000
+          },
+          {
+            "daysAgo": 0,
+            "steps": 4000
+          }
+        ],
+        "workouts": []
+      },
+      "expected": [
+        "Low activity",
+        "No workouts this week"
+      ]
+    },
+    {
+      "name": "staying active",
+      "input": {
+        "metrics": [
+          {
+            "daysAgo": 0,
+            "steps": 8000
+          }
+        ],
+        "workouts": []
+      },
+      "expected": [
+        "Staying active",
+        "No workouts this week"
+      ]
+    },
+    {
+      "name": "moderate steps: no step insight",
+      "input": {
+        "metrics": [
+          {
+            "daysAgo": 0,
+            "steps": 6000
+          }
+        ],
+        "workouts": []
+      },
+      "expected": [
+        "No workouts this week"
+      ]
+    },
+    {
+      "name": "weight trending down",
+      "input": {
+        "metrics": [
+          {
+            "daysAgo": 8,
+            "weight": 71
+          },
+          {
+            "daysAgo": 0,
+            "weight": 70
+          }
+        ],
+        "workouts": []
+      },
+      "expected": [
+        "No workouts this week",
+        "Weight trending down"
+      ]
+    },
+    {
+      "name": "small weight change ignored",
+      "input": {
+        "metrics": [
+          {
+            "daysAgo": 8,
+            "weight": 70
+          },
+          {
+            "daysAgo": 0,
+            "weight": 70.2
+          }
+        ],
+        "workouts": []
+      },
+      "expected": [
+        "No workouts this week"
+      ]
+    },
+    {
+      "name": "recovery rising",
+      "input": {
+        "metrics": [
+          {
+            "daysAgo": 2,
+            "recoveryScore": 50
+          },
+          {
+            "daysAgo": 1,
+            "recoveryScore": 55
+          },
+          {
+            "daysAgo": 0,
+            "recoveryScore": 65
+          }
+        ],
+        "workouts": []
+      },
+      "expected": [
+        "No workouts this week",
+        "Recovery rising"
+      ]
+    },
+    {
+      "name": "recovery falling",
+      "input": {
+        "metrics": [
+          {
+            "daysAgo": 2,
+            "recoveryScore": 80
+          },
+          {
+            "daysAgo": 1,
+            "recoveryScore": 75
+          },
+          {
+            "daysAgo": 0,
+            "recoveryScore": 60
+          }
+        ],
+        "workouts": []
+      },
+      "expected": [
+        "No workouts this week",
+        "Recovery falling"
+      ]
+    },
+    {
+      "name": "two recovery points are not a trend",
+      "input": {
+        "metrics": [
+          {
+            "daysAgo": 1,
+            "recoveryScore": 40
+          },
+          {
+            "daysAgo": 0,
+            "recoveryScore": 90
+          }
+        ],
+        "workouts": []
+      },
+      "expected": [
+        "No workouts this week"
+      ]
+    }
+  ]
+}

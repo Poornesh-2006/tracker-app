@@ -23,6 +23,7 @@ import { useSupabaseAuthStore } from '@/stores/supabase-auth';
 import { shareExport } from '@/services/export';
 import { isSupabaseConfigured } from '@/services/supabase';
 import { syncLatest, syncAll } from '@/services/sync-manager';
+import { errorMessage } from '@/utils/helpers';
 
 export default function SettingsScreen() {
   const theme = useTheme();
@@ -75,7 +76,7 @@ export default function SettingsScreen() {
     try {
       await shareExport();
     } catch (e) {
-      Alert.alert('Export failed', e instanceof Error ? e.message : 'Could not export data.');
+      Alert.alert('Export failed', errorMessage(e, 'Could not export data.'));
     } finally {
       setExporting(false);
     }
@@ -262,9 +263,10 @@ export default function SettingsScreen() {
             </Text>
           </View>
           <Text variant="bodySmall" style={[styles.aboutNote, { color: theme.colors.onSurfaceVariant }]}>
-            All data is stored locally on this device. Blood test values and medical notes are
-            encrypted with AES-256 and can only be read after you enter your passcode. Nothing is
-            sent to the cloud.
+            Data is stored on this device. Blood test values and medical notes are encrypted with
+            AES-256 and can only be read after you enter your passcode; other entries are protected by
+            the lock screen but not encrypted on disk. Metrics, meals and workouts go to the cloud only
+            if you sign in and turn on sync.
           </Text>
         </Card.Content>
       </Card>

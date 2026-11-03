@@ -1,0 +1,165 @@
+{
+  "fn": "validateNumber",
+  "description": "Form range checks from utils/validators.ts. Null means not entered and is valid.",
+  "cases": [
+    {
+      "name": "HR below min",
+      "input": {
+        "key": "heartRate",
+        "value": 29
+      },
+      "expected": {
+        "valid": false,
+        "error": "Heart rate must be at least 30."
+      }
+    },
+    {
+      "name": "HR at max",
+      "input": {
+        "key": "heartRate",
+        "value": 200
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "HR above max",
+      "input": {
+        "key": "heartRate",
+        "value": 201
+      },
+      "expected": {
+        "valid": false,
+        "error": "Heart rate cannot exceed 200."
+      }
+    },
+    {
+      "name": "not entered",
+      "input": {
+        "key": "heartRate",
+        "value": null
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "stress zero",
+      "input": {
+        "key": "stress",
+        "value": 0
+      },
+      "expected": {
+        "valid": false,
+        "error": "Stress must be at least 1."
+      }
+    },
+    {
+      "name": "sleep at max",
+      "input": {
+        "key": "sleepHours",
+        "value": 12
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "sleep above max",
+      "input": {
+        "key": "sleepHours",
+        "value": 12.5
+      },
+      "expected": {
+        "valid": false,
+        "error": "Sleep hours cannot exceed 12."
+      }
+    },
+    {
+      "name": "duration zero",
+      "input": {
+        "key": "durationMin",
+        "value": 0
+      },
+      "expected": {
+        "valid": false,
+        "error": "Duration must be at least 1."
+      }
+    },
+    {
+      "name": "steps at max",
+      "input": {
+        "key": "steps",
+        "value": 50000
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "NaN is not a number",
+      "input": {
+        "key": "steps",
+        "value": "NaN"
+      },
+      "expected": {
+        "valid": false,
+        "error": "Steps must be a number."
+      }
+    },
+    {
+      "name": "Infinity is not a number",
+      "input": {
+        "key": "calories",
+        "value": "Infinity"
+      },
+      "expected": {
+        "valid": false,
+        "error": "Calories must be a number."
+      }
+    },
+    {
+      "name": "negative weight",
+      "input": {
+        "key": "weight",
+        "value": -70
+      },
+      "expected": {
+        "valid": false,
+        "error": "Weight must be at least 30."
+      }
+    },
+    {
+      "name": "steps at max",
+      "input": {
+        "key": "steps",
+        "value": 50000
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "name": "zero-minute workout",
+      "input": {
+        "key": "durationMin",
+        "value": 0
+      },
+      "expected": {
+        "valid": false,
+        "error": "Duration must be at least 1."
+      }
+    },
+    {
+      "name": "fractional calories ok",
+      "input": {
+        "key": "calories",
+        "value": 0.5
+      },
+      "expected": {
+        "valid": true
+      }
+    }
+  ]
+}

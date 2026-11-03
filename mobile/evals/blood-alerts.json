@@ -1,0 +1,191 @@
+{
+  "fn": "computeAlerts",
+  "description": "Latest result per test type, flagged when strictly outside the reference range in constants/metrics.ts.",
+  "cases": [
+    {
+      "name": "high glucose",
+      "input": [
+        {
+          "testType": "Glucose (Fasting)",
+          "value": 120,
+          "unit": "mg/dL",
+          "date": "2026-01-01"
+        }
+      ],
+      "expected": [
+        {
+          "level": "high",
+          "title": "Glucose (Fasting) above range"
+        }
+      ]
+    },
+    {
+      "name": "low HDL",
+      "input": [
+        {
+          "testType": "HDL Cholesterol",
+          "value": 35,
+          "unit": "mg/dL",
+          "date": "2026-01-01"
+        }
+      ],
+      "expected": [
+        {
+          "level": "low",
+          "title": "HDL Cholesterol below range"
+        }
+      ]
+    },
+    {
+      "name": "normal LDL",
+      "input": [
+        {
+          "testType": "LDL Cholesterol",
+          "value": 90,
+          "unit": "mg/dL",
+          "date": "2026-01-01"
+        }
+      ],
+      "expected": []
+    },
+    {
+      "name": "latest result wins",
+      "input": [
+        {
+          "testType": "LDL Cholesterol",
+          "value": 150,
+          "unit": "mg/dL",
+          "date": "2026-01-01"
+        },
+        {
+          "testType": "LDL Cholesterol",
+          "value": 90,
+          "unit": "mg/dL",
+          "date": "2026-02-01"
+        }
+      ],
+      "expected": []
+    },
+    {
+      "name": "latest result wins regardless of order",
+      "input": [
+        {
+          "testType": "LDL Cholesterol",
+          "value": 90,
+          "unit": "mg/dL",
+          "date": "2026-01-01"
+        },
+        {
+          "testType": "LDL Cholesterol",
+          "value": 150,
+          "unit": "mg/dL",
+          "date": "2026-02-01"
+        }
+      ],
+      "expected": [
+        {
+          "level": "high",
+          "title": "LDL Cholesterol above range"
+        }
+      ]
+    },
+    {
+      "name": "low TSH",
+      "input": [
+        {
+          "testType": "TSH",
+          "value": 0.2,
+          "unit": "mIU/L",
+          "date": "2026-01-01"
+        }
+      ],
+      "expected": [
+        {
+          "level": "low",
+          "title": "TSH below range"
+        }
+      ]
+    },
+    {
+      "name": "unknown type never alerts",
+      "input": [
+        {
+          "testType": "Foo",
+          "value": 999,
+          "unit": "mg/dL",
+          "date": "2026-01-01"
+        }
+      ],
+      "expected": []
+    },
+    {
+      "name": "upper bound is in range",
+      "input": [
+        {
+          "testType": "Glucose (Fasting)",
+          "value": 100,
+          "unit": "mg/dL",
+          "date": "2026-01-01"
+        }
+      ],
+      "expected": []
+    },
+    {
+      "name": "lower bound is in range",
+      "input": [
+        {
+          "testType": "Glucose (Fasting)",
+          "value": 70,
+          "unit": "mg/dL",
+          "date": "2026-01-01"
+        }
+      ],
+      "expected": []
+    },
+    {
+      "name": "no range defined",
+      "input": [
+        {
+          "testType": "Testosterone",
+          "value": 50,
+          "unit": "ng/dL",
+          "date": "2026-01-01"
+        }
+      ],
+      "expected": []
+    },
+    {
+      "name": "several types",
+      "input": [
+        {
+          "testType": "Vitamin D",
+          "value": 12,
+          "unit": "ng/mL",
+          "date": "2026-01-01"
+        },
+        {
+          "testType": "CRP",
+          "value": 5,
+          "unit": "mg/L",
+          "date": "2026-01-01"
+        },
+        {
+          "testType": "HDL Cholesterol",
+          "value": 60,
+          "unit": "mg/dL",
+          "date": "2026-01-01"
+        }
+      ],
+      "expected": [
+        {
+          "level": "low",
+          "title": "Vitamin D below range"
+        },
+        {
+          "level": "high",
+          "title": "CRP above range"
+        }
+      ]
+    }
+  ]
+}

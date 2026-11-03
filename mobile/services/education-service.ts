@@ -1,69 +1,29 @@
-import { getDb } from './database';
+import { allAs, deleteById, insert } from './db';
 import type { CollegeActivity, EducationMark, Skill } from '@/types';
 
-export async function listSkills(): Promise<Skill[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<{
-    id: number;
-    name: string;
-    category: string;
-    level: number;
-    notes: string | null;
-  }>(`SELECT * FROM skills ORDER BY level DESC, id DESC`);
-  return rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    category: r.category,
-    level: r.level,
-    notes: r.notes,
-  }));
+export function listSkills(): Promise<Skill[]> {
+  return allAs(`SELECT id, name, category, level, notes FROM skills ORDER BY level DESC, id DESC`);
 }
 
-export async function addSkill(input: {
-  name: string;
-  category?: string;
-  level?: number;
-  notes?: string | null;
-}): Promise<number> {
-  const db = await getDb();
-  const result = await db.runAsync(
+export function addSkill(input: { name: string; category?: string; level?: number; notes?: string | null }) {
+  return insert(
     `INSERT INTO skills (name, category, level, notes) VALUES (?, ?, ?, ?)`,
     input.name.trim(),
     input.category ?? 'general',
     input.level ?? 1,
     input.notes ?? null,
   );
-  return result.lastInsertRowId;
 }
 
-export async function deleteSkill(id: number): Promise<void> {
-  const db = await getDb();
-  await db.runAsync(`DELETE FROM skills WHERE id = ?`, id);
+export const deleteSkill = (id: number) => deleteById('skills', id);
+
+export function listMarks(): Promise<EducationMark[]> {
+  return allAs(
+    `SELECT id, subject, exam, score, max_score, date, notes FROM education_marks ORDER BY date DESC, id DESC`,
+  );
 }
 
-export async function listMarks(): Promise<EducationMark[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<{
-    id: number;
-    subject: string;
-    exam: string | null;
-    score: number;
-    max_score: number;
-    date: string | null;
-    notes: string | null;
-  }>(`SELECT * FROM education_marks ORDER BY date DESC, id DESC`);
-  return rows.map((r) => ({
-    id: r.id,
-    subject: r.subject,
-    exam: r.exam,
-    score: r.score,
-    maxScore: r.max_score,
-    date: r.date,
-    notes: r.notes,
-  }));
-}
-
-export async function addMark(input: {
+export function addMark(input: {
   subject: string;
   exam?: string | null;
   score: number;
@@ -71,8 +31,7 @@ export async function addMark(input: {
   date?: string | null;
   notes?: string | null;
 }): Promise<number> {
-  const db = await getDb();
-  const result = await db.runAsync(
+  return insert(
     `INSERT INTO education_marks (subject, exam, score, max_score, date, notes) VALUES (?, ?, ?, ?, ?, ?)`,
     input.subject.trim(),
     input.exam ?? null,
@@ -81,47 +40,19 @@ export async function addMark(input: {
     input.date ?? null,
     input.notes ?? null,
   );
-  return result.lastInsertRowId;
 }
 
-export async function deleteMark(id: number): Promise<void> {
-  const db = await getDb();
-  await db.runAsync(`DELETE FROM education_marks WHERE id = ?`, id);
+export const deleteMark = (id: number) => deleteById('education_marks', id);
+
+const ACTIVITY_COLS = 'id, kind, title, date, status, hours, notes';
+
+export function listCollegeActivities(kind?: CollegeActivity['kind']): Promise<CollegeActivity[]> {
+  return kind
+    ? allAs(`SELECT ${ACTIVITY_COLS} FROM college_activities WHERE kind = ? ORDER BY date DESC, id DESC`, [kind])
+    : allAs(`SELECT ${ACTIVITY_COLS} FROM college_activities ORDER BY date DESC, id DESC`);
 }
 
-export async function listCollegeActivities(kind?: CollegeActivity['kind']): Promise<CollegeActivity[]> {
-  const db = await getDb();
-  const rows = kind
-    ? await db.getAllAsync<{
-        id: number;
-        kind: string;
-        title: string;
-        date: string | null;
-        status: string | null;
-        hours: number | null;
-        notes: string | null;
-      }>(`SELECT * FROM college_activities WHERE kind = ? ORDER BY date DESC, id DESC`, kind)
-    : await db.getAllAsync<{
-        id: number;
-        kind: string;
-        title: string;
-        date: string | null;
-        status: string | null;
-        hours: number | null;
-        notes: string | null;
-      }>(`SELECT * FROM college_activities ORDER BY date DESC, id DESC`);
-  return rows.map((r) => ({
-    id: r.id,
-    kind: r.kind as CollegeActivity['kind'],
-    title: r.title,
-    date: r.date,
-    status: r.status,
-    hours: r.hours,
-    notes: r.notes,
-  }));
-}
-
-export async function addCollegeActivity(input: {
+export function addCollegeActivity(input: {
   kind: CollegeActivity['kind'];
   title: string;
   date?: string | null;
@@ -129,8 +60,7 @@ export async function addCollegeActivity(input: {
   hours?: number | null;
   notes?: string | null;
 }): Promise<number> {
-  const db = await getDb();
-  const result = await db.runAsync(
+  return insert(
     `INSERT INTO college_activities (kind, title, date, status, hours, notes) VALUES (?, ?, ?, ?, ?, ?)`,
     input.kind,
     input.title.trim(),
@@ -139,10 +69,6 @@ export async function addCollegeActivity(input: {
     input.hours ?? null,
     input.notes ?? null,
   );
-  return result.lastInsertRowId;
 }
 
-export async function deleteCollegeActivity(id: number): Promise<void> {
-  const db = await getDb();
-  await db.runAsync(`DELETE FROM college_activities WHERE id = ?`, id);
-}
+export const deleteCollegeActivity = (id: number) => deleteById('college_activities', id);

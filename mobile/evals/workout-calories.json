@@ -1,0 +1,186 @@
+{
+  "fn": "calculateWorkoutCalories",
+  "description": "kcal = rate/min x minutes x intensity multiplier (1-2: x1, 3: x1.5, 4: x2, 5: x2.5, other: x1.5) x weight/70. Unknown type = 6 kcal/min.",
+  "cases": [
+    {
+      "name": "running moderate",
+      "input": {
+        "type": "Running",
+        "durationMin": 30,
+        "intensity": 3,
+        "weightKg": 70
+      },
+      "expected": 540
+    },
+    {
+      "name": "no intensity = moderate",
+      "input": {
+        "type": "Running",
+        "durationMin": 30,
+        "intensity": null,
+        "weightKg": null
+      },
+      "expected": 540
+    },
+    {
+      "name": "walking easy",
+      "input": {
+        "type": "Walking",
+        "durationMin": 60,
+        "intensity": 1,
+        "weightKg": null
+      },
+      "expected": 240
+    },
+    {
+      "name": "hiit max",
+      "input": {
+        "type": "HIIT",
+        "durationMin": 20,
+        "intensity": 5,
+        "weightKg": null
+      },
+      "expected": 750
+    },
+    {
+      "name": "form option Weight Training uses strength rate (regression)",
+      "input": {
+        "type": "Weight Training",
+        "durationMin": 45,
+        "intensity": 4,
+        "weightKg": null
+      },
+      "expected": 630
+    },
+    {
+      "name": "multi-word type",
+      "input": {
+        "type": "Jump Rope",
+        "durationMin": 10,
+        "intensity": 3,
+        "weightKg": null
+      },
+      "expected": 210
+    },
+    {
+      "name": "unknown type default",
+      "input": {
+        "type": "Other",
+        "durationMin": 30,
+        "intensity": 2,
+        "weightKg": null
+      },
+      "expected": 180
+    },
+    {
+      "name": "heavier person scales",
+      "input": {
+        "type": "Running",
+        "durationMin": 30,
+        "intensity": 3,
+        "weightKg": 140
+      },
+      "expected": 1080
+    },
+    {
+      "name": "zero minutes",
+      "input": {
+        "type": "Running",
+        "durationMin": 0,
+        "intensity": 3,
+        "weightKg": null
+      },
+      "expected": 0
+    },
+    {
+      "name": "negative minutes",
+      "input": {
+        "type": "Running",
+        "durationMin": -5,
+        "intensity": 3,
+        "weightKg": null
+      },
+      "expected": 0
+    },
+    {
+      "name": "out-of-range intensity = moderate",
+      "input": {
+        "type": "Yoga",
+        "durationMin": 60,
+        "intensity": 9,
+        "weightKg": null
+      },
+      "expected": 270
+    },
+    {
+      "name": "whitespace and case",
+      "input": {
+        "type": " cycling ",
+        "durationMin": 40,
+        "intensity": 3,
+        "weightKg": null
+      },
+      "expected": 480
+    },
+    {
+      "name": "NaN minutes",
+      "input": {
+        "type": "Running",
+        "durationMin": null,
+        "intensity": 3,
+        "weightKg": 70
+      },
+      "expected": 0
+    },
+    {
+      "name": "NaN weight falls back to 70kg",
+      "input": {
+        "type": "Running",
+        "durationMin": 30,
+        "intensity": 3,
+        "weightKg": null
+      },
+      "expected": 540
+    },
+    {
+      "name": "negative weight falls back to 70kg",
+      "input": {
+        "type": "Running",
+        "durationMin": 30,
+        "intensity": 3,
+        "weightKg": -80
+      },
+      "expected": 540
+    },
+    {
+      "name": "intensity 0 = moderate",
+      "input": {
+        "type": "Running",
+        "durationMin": 30,
+        "intensity": 0,
+        "weightKg": 70
+      },
+      "expected": 540
+    },
+    {
+      "name": "hyphenated type Jump-Rope",
+      "input": {
+        "type": "Jump-Rope",
+        "durationMin": 30,
+        "intensity": 3,
+        "weightKg": 70
+      },
+      "expected": 630
+    },
+    {
+      "name": "empty type uses default rate",
+      "input": {
+        "type": "",
+        "durationMin": 10,
+        "intensity": 3,
+        "weightKg": 70
+      },
+      "expected": 90
+    }
+  ]
+}

@@ -23,9 +23,9 @@ import {
   deleteCollegeActivity,
   listCollegeActivities,
 } from '@/services/education-service';
-import { todayStr } from '@/constants/metrics';
 import { palette, radii } from '@/constants/theme';
 import type { CollegeActivity } from '@/types';
+import { todayStr } from '@/utils/dates';
 
 type Kind = CollegeActivity['kind'] | 'all';
 

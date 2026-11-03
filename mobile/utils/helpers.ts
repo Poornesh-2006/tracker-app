@@ -1,14 +1,10 @@
-import { toDateStr } from '@/constants/metrics';
-
 export function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
 }
 
-export function parseOptionalNumber(value: string): number | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const n = Number(trimmed);
-  return Number.isFinite(n) ? n : null;
+/** Mean, or null for an empty list. */
+export function average(values: number[]): number | null {
+  return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
 }
 
 export function matchesSearch(haystack: string, query: string): boolean {
@@ -17,12 +13,7 @@ export function matchesSearch(haystack: string, query: string): boolean {
   return haystack.toLowerCase().includes(q);
 }
 
-export function daysAgo(n: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return toDateStr(d);
-}
-
-export function pluralize(count: number, singular: string, plural = `${singular}s`): string {
-  return count === 1 ? singular : plural;
+/** User-facing message from an unknown thrown value. */
+export function errorMessage(e: unknown, fallback = 'Something went wrong.'): string {
+  return e instanceof Error && e.message ? e.message : fallback;
 }

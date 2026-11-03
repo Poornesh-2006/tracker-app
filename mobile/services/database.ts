@@ -4,9 +4,6 @@ const DATABASE_NAME = 'lifos.db';
 
 const MIGRATIONS: string[] = [
   `
-  PRAGMA journal_mode = 'wal';
-  PRAGMA foreign_keys = ON;
-
   CREATE TABLE IF NOT EXISTS blood_tests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     date TEXT NOT NULL,
@@ -316,63 +313,60 @@ const MIGRATIONS: string[] = [
     purchased_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   `,
+  // v6 — points ledger (earned points; rank/streaks/achievements derive from it)
+  `
+  CREATE TABLE IF NOT EXISTS points_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    ref_date TEXT NOT NULL,
+    points INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_points_log_user_date ON points_log (user_id, ref_date);
+  `,
 ];
 
 let db: SQLite.SQLiteDatabase | null = null;
+let opening: Promise<SQLite.SQLiteDatabase> | null = null;
 
 export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (db) return db;
+  // Concurrent first callers share one open + migrate instead of racing.
+  opening ??= open().finally(() => {
+    opening = null;
+  });
+  return opening;
+}
+
+async function open(): Promise<SQLite.SQLiteDatabase> {
   const instance = await SQLite.openDatabaseAsync(DATABASE_NAME);
+  // Per-connection settings: must run on every open, not just in migration 1,
+  // otherwise ON DELETE CASCADE silently stops working after the first launch.
+  await instance.execAsync(`PRAGMA journal_mode = 'wal'; PRAGMA foreign_keys = ON;`);
   await migrate(instance);
   db = instance;
-  return db;
+  return instance;
 }
 
 async function migrate(instance: SQLite.SQLiteDatabase): Promise<void> {
-  let { user_version: version } =
-    (await instance.getFirstAsync<{ user_version: number }>('PRAGMA user_version')) ?? {
-      user_version: 0,
-    };
-  for (let i = version; i < MIGRATIONS.length; i++) {
-    await instance.execAsync(MIGRATIONS[i]);
-    await instance.execAsync(`PRAGMA user_version = ${i + 1}`);
+  const row = await instance.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+  for (let i = row?.user_version ?? 0; i < MIGRATIONS.length; i++) {
+    // Schema change and version bump commit together, or not at all.
+    await instance.withTransactionAsync(async () => {
+      await instance.execAsync(MIGRATIONS[i]);
+      await instance.execAsync(`PRAGMA user_version = ${i + 1}`);
+    });
   }
 }
 
+/** Wipe all local data. Deleting the file also resets user_version, so migrations rerun. */
 export async function resetDatabase(): Promise<void> {
+  if (opening) await opening.catch(() => undefined);
   if (db) {
     await db.closeAsync();
     db = null;
   }
-  const fresh = await SQLite.openDatabaseAsync(DATABASE_NAME);
-  await fresh.execAsync(`
-    DROP TABLE IF EXISTS blood_tests;
-    DROP TABLE IF EXISTS daily_metrics;
-    DROP TABLE IF EXISTS food_log;
-    DROP TABLE IF EXISTS workouts;
-    DROP TABLE IF EXISTS settings;
-    DROP TABLE IF EXISTS sync_queue;
-    DROP TABLE IF EXISTS todos;
-    DROP TABLE IF EXISTS hydration_log;
-    DROP TABLE IF EXISTS wardrobe_items;
-    DROP TABLE IF EXISTS grooming_routines;
-    DROP TABLE IF EXISTS knowledge_nodes;
-    DROP TABLE IF EXISTS learning_media;
-    DROP TABLE IF EXISTS skills;
-    DROP TABLE IF EXISTS education_marks;
-    DROP TABLE IF EXISTS college_activities;
-    DROP TABLE IF EXISTS finance_transactions;
-    DROP TABLE IF EXISTS finance_subscriptions;
-    DROP TABLE IF EXISTS investments;
-    DROP TABLE IF EXISTS travel_trips;
-    DROP TABLE IF EXISTS travel_stops;
-    DROP TABLE IF EXISTS travel_live;
-    DROP TABLE IF EXISTS user_purchases;
-    DROP TABLE IF EXISTS rewards_shop;
-    DROP TABLE IF EXISTS achievements;
-    DROP TABLE IF EXISTS user_ranks;
-  `);
-  await fresh.closeAsync();
-  db = null;
+  await SQLite.deleteDatabaseAsync(DATABASE_NAME);
   await getDb();
 }

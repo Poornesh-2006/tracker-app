@@ -20,12 +20,13 @@ import { GlassCard } from '@/components/GlassCard';
 import { EmptyState } from '@/components/EmptyState';
 import { DateField } from '@/components/DateField';
 import { NumberField } from '@/components/NumberField';
-import { formatDate, MEAL_TYPES, todayStr } from '@/constants/metrics';
+import { MEAL_TYPES } from '@/constants/metrics';
 import { useDataStore } from '@/stores/data';
 import { addFoodLog, deleteFoodLog, updateFoodLog } from '@/services/meal-service';
 import { addHydration, deleteHydration, listHydrationByDate, totalHydrationMl } from '@/services/hydration-service';
 import { palette, radii } from '@/constants/theme';
 import type { FoodLogEntry, FoodLogInput, HydrationEntry, MealType } from '@/types';
+import { formatDate, todayStr } from '@/utils/dates';
 
 const WATER_TARGET_ML = 3000;
 const QUICK_ML = [250, 500, 750];

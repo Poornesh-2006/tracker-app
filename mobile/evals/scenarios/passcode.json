@@ -1,0 +1,119 @@
+{
+  "description": "Passcode + encryption lifecycle including crashes mid passcode change and brute-force lockout. Encrypted data must never become unreadable.",
+  "scenarios": [
+    {
+      "name": "setup, wrong passcode refused, right one decrypts",
+      "steps": [
+        { "op": "setup", "pw": "alpha-123" },
+        { "op": "addBlood", "value": 130 },
+        { "op": "lock" },
+        { "op": "unlock", "pw": "alpha-124", "expect": false },
+        { "op": "unlock", "pw": "alpha-123", "expect": true },
+        { "op": "bloodValues", "expect": [130] }
+      ]
+    },
+    {
+      "name": "passcode change re-encrypts; only the new one works",
+      "steps": [
+        { "op": "setup", "pw": "old-pass" },
+        { "op": "addBlood", "value": 95 },
+        { "op": "addBlood", "value": 180 },
+        { "op": "changePassword", "from": "old-pass", "to": "new-pass", "expect": true },
+        { "op": "lock" },
+        { "op": "unlock", "pw": "old-pass", "expect": false },
+        { "op": "unlock", "pw": "new-pass", "expect": true },
+        { "op": "bloodValues", "expect": [180, 95] }
+      ]
+    },
+    {
+      "name": "wrong current passcode: change refused, nothing changes",
+      "steps": [
+        { "op": "setup", "pw": "old-pass" },
+        { "op": "addBlood", "value": 1 },
+        { "op": "changePassword", "from": "nope-nope", "to": "new-pass", "expect": false },
+        { "op": "lock" },
+        { "op": "unlock", "pw": "old-pass", "expect": true },
+        { "op": "keychain", "expect": { "pending": false } }
+      ]
+    },
+    {
+      "name": "crash after re-encrypt: old passcode explains, new one completes the change",
+      "steps": [
+        { "op": "setup", "pw": "old-pass" },
+        { "op": "addBlood", "value": 120 },
+        { "op": "crashAfterReencrypt", "from": "old-pass", "to": "new-pass" },
+        { "op": "unlock", "pw": "old-pass", "expect": { "throws": "re:interrupted" } },
+        { "op": "unlock", "pw": "new-pass", "expect": true },
+        { "op": "keychain", "expect": { "pending": false } },
+        { "op": "bloodValues", "expect": [120] },
+        { "op": "lock" },
+        { "op": "unlock", "pw": "new-pass", "expect": true }
+      ]
+    },
+    {
+      "name": "crash during re-encrypt (rolled back): old passcode still works, new one refused",
+      "steps": [
+        { "op": "setup", "pw": "old-pass" },
+        { "op": "addBlood", "value": 77 },
+        { "op": "crashDuringReencrypt", "from": "old-pass", "to": "new-pass" },
+        { "op": "unlock", "pw": "new-pass", "expect": false },
+        { "op": "unlock", "pw": "old-pass", "expect": true },
+        { "op": "keychain", "expect": { "pending": false } },
+        { "op": "bloodValues", "expect": [77] }
+      ]
+    },
+    {
+      "name": "crash after re-encrypt with no encrypted data: either passcode is safe",
+      "steps": [
+        { "op": "setup", "pw": "old-pass" },
+        { "op": "crashAfterReencrypt", "from": "old-pass", "to": "new-pass" },
+        { "op": "unlock", "pw": "old-pass", "expect": true },
+        { "op": "keychain", "expect": { "pending": false } }
+      ]
+    },
+    {
+      "name": "unicode / emoji passcode round-trips",
+      "steps": [
+        { "op": "setup", "pw": "пароль-🔐-ñ" },
+        { "op": "addBlood", "value": 5.4 },
+        { "op": "lock" },
+        { "op": "unlock", "pw": "пароль-🔐-n", "expect": false },
+        { "op": "unlock", "pw": "пароль-🔐-ñ", "expect": true },
+        { "op": "bloodValues", "expect": [5.4] }
+      ]
+    },
+    {
+      "name": "changing to the same passcode still works",
+      "steps": [
+        { "op": "setup", "pw": "same-pass" },
+        { "op": "addBlood", "value": 10 },
+        { "op": "changePassword", "from": "same-pass", "to": "same-pass", "expect": true },
+        { "op": "lock" },
+        { "op": "unlock", "pw": "same-pass", "expect": true },
+        { "op": "bloodValues", "expect": [10] }
+      ]
+    },
+    {
+      "name": "brute force: locked out after 5 misses even with the right passcode, then recovers",
+      "steps": [
+        { "op": "storeSetup", "pw": "right-pass", "expect": true },
+        { "op": "storeLock" },
+        { "op": "storeUnlock", "pw": "w1", "expect": { "result": false, "error": "Incorrect password." } },
+        { "op": "storeUnlock", "pw": "w2", "expect": { "result": false } },
+        { "op": "storeUnlock", "pw": "w3", "expect": { "result": false } },
+        { "op": "storeUnlock", "pw": "w4", "expect": { "result": false } },
+        { "op": "storeUnlock", "pw": "w5", "expect": { "result": false } },
+        { "op": "storeUnlock", "pw": "right-pass", "expect": { "result": false, "error": "re:Too many attempts. Try again in (29|30)s" } },
+        { "op": "expireLockout" },
+        { "op": "storeUnlock", "pw": "right-pass", "expect": { "result": true, "error": null } }
+      ]
+    },
+    {
+      "name": "short passcode rejected at setup",
+      "steps": [
+        { "op": "storeSetup", "pw": "12345", "expect": false },
+        { "op": "storeSetup", "pw": "123456", "expect": true }
+      ]
+    }
+  ]
+}

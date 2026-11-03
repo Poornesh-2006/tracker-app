@@ -1,37 +1,15 @@
-import { getDb } from './database';
+import { allAs, deleteById, insert, run } from './db';
 import type { LearningMedia } from '@/types';
 
-interface Row {
-  id: number;
-  kind: string;
-  title: string;
-  creator: string | null;
-  url: string | null;
-  status: string;
-  notes: string | null;
+const COLS = 'id, kind, title, creator, url, status, notes';
+
+export function listMedia(kind?: LearningMedia['kind']): Promise<LearningMedia[]> {
+  return kind
+    ? allAs(`SELECT ${COLS} FROM learning_media WHERE kind = ? ORDER BY id DESC`, [kind])
+    : allAs(`SELECT ${COLS} FROM learning_media ORDER BY id DESC`);
 }
 
-function map(row: Row): LearningMedia {
-  return {
-    id: row.id,
-    kind: row.kind as LearningMedia['kind'],
-    title: row.title,
-    creator: row.creator,
-    url: row.url,
-    status: row.status as LearningMedia['status'],
-    notes: row.notes,
-  };
-}
-
-export async function listMedia(kind?: LearningMedia['kind']): Promise<LearningMedia[]> {
-  const db = await getDb();
-  const rows = kind
-    ? await db.getAllAsync<Row>(`SELECT * FROM learning_media WHERE kind = ? ORDER BY id DESC`, kind)
-    : await db.getAllAsync<Row>(`SELECT * FROM learning_media ORDER BY id DESC`);
-  return rows.map(map);
-}
-
-export async function addMedia(input: {
+export function addMedia(input: {
   kind: LearningMedia['kind'];
   title: string;
   creator?: string | null;
@@ -39,8 +17,7 @@ export async function addMedia(input: {
   status?: LearningMedia['status'];
   notes?: string | null;
 }): Promise<number> {
-  const db = await getDb();
-  const result = await db.runAsync(
+  return insert(
     `INSERT INTO learning_media (kind, title, creator, url, status, notes) VALUES (?, ?, ?, ?, ?, ?)`,
     input.kind,
     input.title.trim(),
@@ -49,15 +26,10 @@ export async function addMedia(input: {
     input.status ?? 'todo',
     input.notes ?? null,
   );
-  return result.lastInsertRowId;
 }
 
 export async function setMediaStatus(id: number, status: LearningMedia['status']): Promise<void> {
-  const db = await getDb();
-  await db.runAsync(`UPDATE learning_media SET status = ? WHERE id = ?`, status, id);
+  await run(`UPDATE learning_media SET status = ? WHERE id = ?`, status, id);
 }
 
-export async function deleteMedia(id: number): Promise<void> {
-  const db = await getDb();
-  await db.runAsync(`DELETE FROM learning_media WHERE id = ?`, id);
-}
+export const deleteMedia = (id: number) => deleteById('learning_media', id);

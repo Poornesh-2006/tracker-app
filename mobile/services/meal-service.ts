@@ -1,96 +1,62 @@
-import { getDb } from './database';
-import type { FoodLogEntry, FoodLogInput, MealType } from '@/types';
+import { allAs, deleteById, first, insert, run } from './db';
+import { dateOf, enqueueDays } from './sync-queue';
+import { awardPointsSafely } from './gamification-service';
+import type { FoodLogEntry, FoodLogInput } from '@/types';
 
-interface FoodRow {
-  id: number;
-  date: string;
-  meal_type: string;
-  name: string;
-  calories: number | null;
-  protein: number | null;
-  carbs: number | null;
-  fat: number | null;
-  photo_uri: string | null;
-  created_at: string;
-}
-
-function rowToFood(row: FoodRow): FoodLogEntry {
-  return {
-    id: row.id,
-    date: row.date,
-    mealType: row.meal_type as MealType,
-    name: row.name,
-    calories: row.calories,
-    protein: row.protein,
-    carbs: row.carbs,
-    fat: row.fat,
-    photoUri: row.photo_uri,
-    createdAt: row.created_at,
-  };
-}
+const params = (i: FoodLogInput) =>
+  [
+    i.date,
+    i.mealType,
+    i.name,
+    i.calories ?? null,
+    i.protein ?? null,
+    i.carbs ?? null,
+    i.fat ?? null,
+    i.photoUri ?? null,
+  ] as const;
 
 export async function addFoodLog(input: FoodLogInput): Promise<number> {
-  const db = await getDb();
-  const result = await db.runAsync(
+  const id = await insert(
     `INSERT INTO food_log (date, meal_type, name, calories, protein, carbs, fat, photo_uri)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    input.date,
-    input.mealType,
-    input.name,
-    input.calories ?? null,
-    input.protein ?? null,
-    input.carbs ?? null,
-    input.fat ?? null,
-    input.photoUri ?? null,
+    ...params(input),
   );
-  return result.lastInsertRowId;
+  await enqueueDays('meals', input.date);
+  await awardPointsSafely('meal', input.date);
+  return id;
 }
 
-export async function listFoodByDate(date: string): Promise<FoodLogEntry[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<FoodRow>(
-    `SELECT * FROM food_log WHERE date = ? ORDER BY id ASC`,
-    date,
-  );
-  return rows.map(rowToFood);
+export function listFoodByDate(date: string): Promise<FoodLogEntry[]> {
+  return allAs<FoodLogEntry>(`SELECT * FROM food_log WHERE date = ? ORDER BY id ASC`, [date]);
 }
 
-export async function listFoodBetween(fromDate: string, toDate: string): Promise<FoodLogEntry[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<FoodRow>(
+export function listFoodBetween(fromDate: string, toDate: string): Promise<FoodLogEntry[]> {
+  return allAs<FoodLogEntry>(
     `SELECT * FROM food_log WHERE date >= ? AND date <= ? ORDER BY date ASC, id ASC`,
-    fromDate,
-    toDate,
+    [fromDate, toDate],
   );
-  return rows.map(rowToFood);
 }
 
 export async function updateFoodLog(id: number, input: FoodLogInput): Promise<void> {
-  const db = await getDb();
-  await db.runAsync(
+  const oldDate = await dateOf('food_log', id);
+  await run(
     `UPDATE food_log
      SET date = ?, meal_type = ?, name = ?, calories = ?, protein = ?, carbs = ?, fat = ?, photo_uri = ?
      WHERE id = ?`,
-    input.date,
-    input.mealType,
-    input.name,
-    input.calories ?? null,
-    input.protein ?? null,
-    input.carbs ?? null,
-    input.fat ?? null,
-    input.photoUri ?? null,
+    ...params(input),
     id,
   );
+  await enqueueDays('meals', oldDate, input.date); // re-dated: both days change
 }
 
 export async function deleteFoodLog(id: number): Promise<void> {
-  const db = await getDb();
-  await db.runAsync('DELETE FROM food_log WHERE id = ?', id);
+  const date = await dateOf('food_log', id);
+  await deleteById('food_log', id);
+  await enqueueDays('meals', date);
 }
 
 export async function caloriesForDate(date: string): Promise<number> {
-  const db = await getDb();
-  const row = await db.getFirstAsync<{ total: number | null }>(
+  const row = await first<{ total: number | null }>(
     `SELECT COALESCE(SUM(calories), 0) AS total FROM food_log WHERE date = ?`,
     date,
   );

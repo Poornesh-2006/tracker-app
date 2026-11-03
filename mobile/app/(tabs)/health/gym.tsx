@@ -18,8 +18,8 @@ import { EmptyState } from '@/components/EmptyState';
 import { DateField } from '@/components/DateField';
 import { NumberField } from '@/components/NumberField';
 import { MetricsCard } from '@/components/MetricsCard';
-import { formatDate, INTENSITY_LABELS, todayStr } from '@/constants/metrics';
-import { WORKOUT_TYPES } from '@/utils/constants';
+import { INTENSITY_LABELS } from '@/constants/metrics';
+import { WORKOUT_TYPES } from '@/constants/workout-calculations';
 import { summarizeWorkoutsWeek } from '@/utils/calculations';
 import { useDataStore } from '@/stores/data';
 import { addWorkout, deleteWorkout, updateWorkout } from '@/services/workout-service';
@@ -27,6 +27,7 @@ import { upsertDailyMetrics } from '@/services/metrics-service';
 import { calculateRecoveryScore } from '@/services/ai-engine';
 import { palette, radii } from '@/constants/theme';
 import type { DailyMetricsInput, WorkoutEntry, WorkoutInput } from '@/types';
+import { formatDate, todayStr } from '@/utils/dates';
 
 export default function GymScreen() {
   const theme = useTheme();
@@ -308,7 +309,6 @@ function ActivityModal({
         sleepHours: sleep ? Number(sleep) : null,
         stress: stress ? Number(stress) : null,
         heartRate: heartRate ? Number(heartRate) : null,
-        weight: initial?.weight ?? null,
       }),
       notes: notesBits.length ? notesBits.join(' · ') : null,
     };

@@ -4,8 +4,8 @@ import { ActivityIndicator, Text, useTheme } from 'react-native-paper';
 
 import { GlassCard } from '@/components/GlassCard';
 import { listFoodBetween } from '@/services/meal-service';
-import { toDateStr } from '@/constants/metrics';
 import type { FoodLogEntry } from '@/types';
+import { toDateStr } from '@/utils/dates';
 
 interface WeeklyFoodSummaryProps {
   endDate: string;

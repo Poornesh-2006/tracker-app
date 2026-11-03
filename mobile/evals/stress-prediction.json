@@ -1,0 +1,110 @@
+{
+  "fn": "predictStress",
+  "description": "Mean stress of the last 7 rows; +1.5 if mean sleep of the last 3 rows < 6h, -0.5 if > 8h; rounded, clamped 1-10; null without stress data.",
+  "cases": [
+    {
+      "name": "plain average",
+      "input": [
+        {
+          "stress": 5
+        },
+        {
+          "stress": 5
+        },
+        {
+          "stress": 5
+        }
+      ],
+      "expected": 5
+    },
+    {
+      "name": "short sleep raises",
+      "input": [
+        {
+          "stress": 5,
+          "sleepHours": 5
+        },
+        {
+          "stress": 5,
+          "sleepHours": 5
+        },
+        {
+          "stress": 5,
+          "sleepHours": 5
+        }
+      ],
+      "expected": 7
+    },
+    {
+      "name": "long sleep lowers",
+      "input": [
+        {
+          "stress": 5,
+          "sleepHours": 9
+        },
+        {
+          "stress": 5,
+          "sleepHours": 9
+        },
+        {
+          "stress": 5,
+          "sleepHours": 9
+        }
+      ],
+      "expected": 5
+    },
+    {
+      "name": "clamped to 10",
+      "input": [
+        {
+          "stress": 10,
+          "sleepHours": 4
+        },
+        {
+          "stress": 10,
+          "sleepHours": 4
+        }
+      ],
+      "expected": 10
+    },
+    {
+      "name": "no stress data",
+      "input": [
+        {
+          "sleepHours": 8
+        }
+      ],
+      "expected": null
+    },
+    {
+      "name": "only last 7 rows count",
+      "input": [
+        {
+          "stress": 1
+        },
+        {
+          "stress": 9
+        },
+        {
+          "stress": 9
+        },
+        {
+          "stress": 9
+        },
+        {
+          "stress": 9
+        },
+        {
+          "stress": 9
+        },
+        {
+          "stress": 9
+        },
+        {
+          "stress": 9
+        }
+      ],
+      "expected": 9
+    }
+  ]
+}

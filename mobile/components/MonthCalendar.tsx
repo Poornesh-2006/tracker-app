@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import { palette, radii } from '@/constants/theme';
-import { toDateStr } from '@/constants/metrics';
 import { GlassCard } from '@/components/GlassCard';
+import { toDateStr } from '@/utils/dates';
 
 interface MonthCalendarProps {
   /** YYYY-MM-DD */

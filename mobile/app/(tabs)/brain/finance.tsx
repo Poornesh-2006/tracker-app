@@ -26,9 +26,9 @@ import {
   listTransactions,
   summarizeFinance,
 } from '@/services/finance-service';
-import { todayStr } from '@/constants/metrics';
 import { palette, radii } from '@/constants/theme';
 import type { FinanceSubscription, FinanceTransaction } from '@/types';
+import { todayStr } from '@/utils/dates';
 
 const EXPENSE_CATS = ['Food', 'Entertainment', 'Transport', 'Shopping', 'Bills', 'Education', 'Other'];
 const INCOME_CATS = ['Salary', 'Freelance', 'Business', 'Gift', 'Other'];

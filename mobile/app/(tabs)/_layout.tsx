@@ -1,9 +1,9 @@
-import { Redirect, Tabs } from 'expo-router';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Redirect, Tabs, type Href } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import { useAuthStore } from '@/stores/auth';
+import { isAccountRequired, useSupabaseAuthStore } from '@/stores/supabase-auth';
 import { palette } from '@/constants/theme';
 
 type IconName = keyof typeof MaterialCommunityIcons.glyphMap;
@@ -32,8 +32,13 @@ function tabIcon(name: IconName, prominent = false) {
 
 export default function TabLayout() {
   const status = useAuthStore((s) => s.status);
+  const accountStatus = useSupabaseAuthStore((s) => s.status);
   const theme = useTheme();
   const isDark = theme.dark;
+
+  if (isAccountRequired() && accountStatus !== 'signedIn') {
+    return <Redirect href={'/(auth)/account' as Href} />;
+  }
 
   if (status !== 'unlocked') {
     return <Redirect href={status === 'uninitialized' ? '/(auth)/welcome' : '/(auth)/unlock'} />;
@@ -47,12 +52,7 @@ export default function TabLayout() {
         tabBarInactiveTintColor: isDark ? palette.chromeWhite : palette.masala,
         tabBarStyle: {
           position: 'absolute',
-          backgroundColor:
-            Platform.OS === 'ios'
-              ? 'transparent'
-              : isDark
-                ? 'rgba(37,36,34,0.92)'
-                : 'rgba(255,252,242,0.94)',
+          backgroundColor: theme.colors.surface,
           borderTopColor: isDark ? 'rgba(204,197,185,0.15)' : 'rgba(204,197,185,0.45)',
           borderTopWidth: StyleSheet.hairlineWidth,
           elevation: 0,
@@ -60,10 +60,6 @@ export default function TabLayout() {
           paddingBottom: 13,
           paddingTop: 10,
         },
-        tabBarBackground: () =>
-          Platform.OS === 'ios' ? (
-            <BlurView intensity={80} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
-          ) : null,
         tabBarLabelStyle: { fontSize: 10, fontWeight: '800', letterSpacing: 0.2 },
       }}>
       <Tabs.Screen
