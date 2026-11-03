@@ -1,149 +1,114 @@
-import { MD3DarkTheme, MD3LightTheme, type MD3Theme } from 'react-native-paper';
+import { useColorScheme } from 'react-native';
+import { useSettingsStore } from '@/stores/settings';
 
-/** Official lif.os brand palette — Soft Glass Bento */
-export const palette = {
-  orchidWhite: '#F4F2EC',
-  chromeWhite: '#C9C8C1',
-  masala: '#5C5D58',
-  warmBlack: '#111214',
-  vermillion: '#F15A24',
-  lime: '#D8EF68',
-  lavender: '#E6E0F7',
-  paper: '#FFFEFA',
+/**
+ * lif.os design tokens: warm cream canvas, ink type, pastel bento cards,
+ * one hot accent. Pastels keep dark ink on top in both modes; only the canvas
+ * and surfaces invert in dark mode.
+ */
+export const pastel = {
+  butter: '#F6DF73',
+  blush: '#F5B9D2',
+  lavender: '#CDC5F3',
+  sky: '#BBD9F2',
+  sage: '#CFE2B6',
+  peach: '#F8C8A2',
+  mint: '#BDE6D6',
 } as const;
 
-export const brandColors = {
-  primary: palette.vermillion,
-  onPrimary: '#FFFFFF',
-  secondary: palette.masala,
-  tertiary: palette.chromeWhite,
-  background: palette.orchidWhite,
-  surface: '#FFFFFF',
-  surfaceVariant: '#EAE8E1',
-  outline: palette.chromeWhite,
-  error: '#C62828',
-  warning: palette.vermillion,
-  success: '#668A3C',
-  glassLight: 'rgba(255, 252, 242, 0.72)',
-  glassDark: 'rgba(64, 61, 57, 0.55)',
-  glassBorder: 'rgba(204, 197, 185, 0.55)',
+export type Tone = keyof typeof pastel | 'surface' | 'ink' | 'accent';
+
+export const accent = {
+  tangerine: '#FF5A1F',
+  pink: '#F28AC0',
+  lime: '#D4F25A',
+} as const;
+
+const light = {
+  canvas: '#F3EEE3',
+  surface: '#FFFCF6',
+  surfaceAlt: '#EAE3D5',
+  ink: '#141413',
+  inkSoft: '#3A3833',
+  muted: '#7A746A',
+  line: '#E2DACB',
+  onInk: '#F3EEE3',
+  danger: '#D93B2B',
+  success: '#2F8F5B',
+  warning: '#C98A10',
+  overlay: 'rgba(20,20,19,0.38)',
 };
 
-export const radii = {
-  sm: 12,
-  md: 18,
-  lg: 24,
-  xl: 28,
-  pill: 999,
+const dark: typeof light = {
+  canvas: '#0E0E0D',
+  surface: '#1A1917',
+  surfaceAlt: '#252420',
+  ink: '#F3EEE3',
+  inkSoft: '#D6D0C4',
+  muted: '#8F897E',
+  line: '#2E2C28',
+  onInk: '#141413',
+  danger: '#FF6B5B',
+  success: '#5BC48A',
+  warning: '#F2B33D',
+  overlay: 'rgba(0,0,0,0.6)',
 };
 
-export const spacing = {
-  xs: 6,
-  sm: 10,
-  md: 16,
-  lg: 24,
-  xl: 32,
-};
+export type Palette = typeof light;
 
-export const lightTheme: MD3Theme = {
-  ...MD3LightTheme,
-  roundness: 3,
-  colors: {
-    ...MD3LightTheme.colors,
-    primary: brandColors.primary,
-    onPrimary: brandColors.onPrimary,
-    primaryContainer: '#FFD8C8',
-    onPrimaryContainer: palette.warmBlack,
-    secondary: brandColors.secondary,
-    onSecondary: '#FFFFFF',
-    secondaryContainer: brandColors.surfaceVariant,
-    onSecondaryContainer: palette.warmBlack,
-    tertiary: palette.masala,
-    background: brandColors.background,
-    onBackground: palette.warmBlack,
-    surface: brandColors.surface,
-    onSurface: palette.warmBlack,
-    surfaceVariant: brandColors.surfaceVariant,
-    onSurfaceVariant: palette.masala,
-    outline: brandColors.outline,
-    outlineVariant: '#E6E0D6',
-    error: brandColors.error,
-    elevation: {
-      ...MD3LightTheme.colors.elevation,
-      level0: 'transparent',
-      level1: brandColors.surface,
-      level2: brandColors.surfaceVariant,
-      level3: '#EFEAE0',
-      level4: '#EBE6DC',
-      level5: '#E7E2D8',
-    },
-  },
-};
+/** Text color on a pastel card: always dark, so pastels read the same in both modes. */
+export const ON_PASTEL = '#141413';
+export const ON_PASTEL_MUTED = 'rgba(20,20,19,0.62)';
 
-export const darkTheme: MD3Theme = {
-  ...MD3DarkTheme,
-  roundness: 3,
-  colors: {
-    ...MD3DarkTheme.colors,
-    primary: palette.vermillion,
-    onPrimary: '#FFFFFF',
-    primaryContainer: '#5A2A16',
-    onPrimaryContainer: '#FFD8C8',
-    secondary: palette.chromeWhite,
-    onSecondary: palette.warmBlack,
-    secondaryContainer: palette.masala,
-    onSecondaryContainer: palette.orchidWhite,
-    tertiary: palette.chromeWhite,
-    background: palette.warmBlack,
-    onBackground: palette.orchidWhite,
-    surface: '#2E2C29',
-    onSurface: palette.orchidWhite,
-    surfaceVariant: palette.masala,
-    onSurfaceVariant: palette.chromeWhite,
-    outline: '#6A655E',
-    outlineVariant: '#4A4641',
-    error: '#FF8A80',
-    elevation: {
-      ...MD3DarkTheme.colors.elevation,
-      level0: 'transparent',
-      level1: '#2E2C29',
-      level2: '#353330',
-      level3: '#3C3A36',
-      level4: '#403E3A',
-      level5: '#454340',
-    },
-  },
-};
+export const radii = { sm: 12, md: 18, lg: 24, xl: 32, pill: 999 } as const;
+export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 
-export function getTheme(mode: 'light' | 'dark'): MD3Theme {
-  return mode === 'dark' ? darkTheme : lightTheme;
+export const fonts = {
+  display: 'SpaceGrotesk_700Bold',
+  displayMedium: 'SpaceGrotesk_500Medium',
+  body: 'Inter_400Regular',
+  bodyMedium: 'Inter_500Medium',
+  bodyBold: 'Inter_700Bold',
+} as const;
+
+/** Height reserved at the bottom of every tab screen for the floating bar. */
+export const TAB_BAR_SPACE = 112;
+
+export interface Theme {
+  dark: boolean;
+  c: Palette;
+  /** Background + foreground for a card tone. */
+  tone: (t: Tone) => { bg: string; fg: string; muted: string };
 }
 
-/**
- * Text/icon colour for content drawn on a card or screen background.
- * Always prefer this over hardcoding palette.warmBlack, which is invisible
- * in dark mode.
- */
-export function inkOn(isDark: boolean): string {
-  return isDark ? palette.orchidWhite : palette.warmBlack;
-}
-
-/** Secondary/muted text colour for content on a card or screen background. */
-export function mutedOn(isDark: boolean): string {
-  return isDark ? palette.chromeWhite : palette.masala;
-}
-
-/**
- * Shared native-stack screen options so sub-screen headers follow the theme.
- * Use this instead of hardcoding palette.orchidWhite / palette.warmBlack.
- */
-export function stackScreenOptions(isDark: boolean) {
-  const background = isDark ? darkTheme.colors.background : palette.orchidWhite;
+function build(isDark: boolean): Theme {
+  const c = isDark ? dark : light;
   return {
-    headerStyle: { backgroundColor: background },
-    headerTintColor: inkOn(isDark),
-    headerTitleStyle: { fontWeight: '700' as const },
-    headerShadowVisible: false,
-    contentStyle: { backgroundColor: background },
+    dark: isDark,
+    c,
+    tone: (t) => {
+      if (t === 'surface') return { bg: c.surface, fg: c.ink, muted: c.muted };
+      if (t === 'ink') return { bg: c.ink, fg: c.onInk, muted: isDark ? 'rgba(20,20,19,0.6)' : 'rgba(243,238,227,0.6)' };
+      if (t === 'accent') return { bg: accent.tangerine, fg: '#FFFFFF', muted: 'rgba(255,255,255,0.75)' };
+      return { bg: pastel[t], fg: ON_PASTEL, muted: ON_PASTEL_MUTED };
+    },
   };
+}
+
+const LIGHT = build(false);
+const DARK = build(true);
+
+export function themeFor(mode: 'light' | 'dark'): Theme {
+  return mode === 'dark' ? DARK : LIGHT;
+}
+
+/** Resolves the user's theme setting (light / dark / system). */
+export function useThemeMode(): 'light' | 'dark' {
+  const pref = useSettingsStore((s) => s.theme);
+  const system = useColorScheme();
+  return pref === 'system' ? (system === 'dark' ? 'dark' : 'light') : pref;
+}
+
+export function useTheme(): Theme {
+  return themeFor(useThemeMode());
 }

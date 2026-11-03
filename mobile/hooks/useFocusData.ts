@@ -1,11 +1,13 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { errorMessage } from '@/utils/helpers';
+import { useDataVersion } from './useDataVersion';
 
 /**
  * Loads screen data every time the screen gains focus (so edits made on other
  * screens show up) and exposes `reload` for pull-to-refresh / after saves.
  * Pass a memoized loader: `useFocusData(useCallback(() => listX(date), [date]))`.
+ * Also reloads whenever any save bumps the global data version.
  * Results from a stale load (screen blurred, or a newer load started) are dropped.
  */
 export function useFocusData<T>(load: () => Promise<T>) {
@@ -13,6 +15,8 @@ export function useFocusData<T>(load: () => Promise<T>) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const generation = useRef(0);
+  const version = useDataVersion((s) => s.version);
+  const focused = useRef(false);
 
   const reload = useCallback(async () => {
     const mine = ++generation.current;
@@ -32,12 +36,20 @@ export function useFocusData<T>(load: () => Promise<T>) {
 
   useFocusEffect(
     useCallback(() => {
+      focused.current = true;
       void reload();
       return () => {
+        focused.current = false;
         generation.current++; // blur: ignore in-flight results
       };
     }, [reload]),
   );
+
+  // A save elsewhere (quick-add sheet) while this screen is visible.
+  useEffect(() => {
+    if (focused.current && version > 0) void reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version]);
 
   return { data, loading, error, reload };
 }

@@ -1,333 +1,205 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Image, ScrollView, StyleSheet, View } from 'react-native';
-import {
-  Button,
-  Chip,
-  HelperText,
-  Modal,
-  Portal,
-  ProgressBar,
-  Text,
-  TextInput,
-  useTheme,
-} from 'react-native-paper';
+import { useCallback, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
-
-import { MonthCalendar } from '@/components/MonthCalendar';
-import { GlassCard } from '@/components/GlassCard';
-import { EmptyState } from '@/components/EmptyState';
-import { DateField } from '@/components/DateField';
-import { NumberField } from '@/components/NumberField';
+import { Bars, Button, Card, CardHead, CountUp, DayStepper, Empty, IconButton, ListItem, Meter, Ring, Row, Screen, Section, Tap, Text, toast } from '@/components/ui';
+import { MealSheet } from '@/components/forms/EntrySheets';
 import { MEAL_TYPES } from '@/constants/metrics';
-import { useDataStore } from '@/stores/data';
-import { addFoodLog, deleteFoodLog, updateFoodLog } from '@/services/meal-service';
-import { addHydration, deleteHydration, listHydrationByDate, totalHydrationMl } from '@/services/hydration-service';
-import { palette, radii } from '@/constants/theme';
-import type { FoodLogEntry, FoodLogInput, HydrationEntry, MealType } from '@/types';
-import { formatDate, todayStr } from '@/utils/dates';
+import { GOALS } from '@/constants/goals';
+import { ON_PASTEL, ON_PASTEL_MUTED, space } from '@/constants/theme';
+import { useFocusData } from '@/hooks/useFocusData';
+import { bumpData } from '@/hooks/useDataVersion';
+import { addHydration, deleteHydration, listHydrationByDate } from '@/services/hydration-service';
+import { listFoodBetween } from '@/services/meal-service';
+import type { FoodLogEntry, MealType } from '@/types';
+import { confirmDestructive } from '@/utils/confirm';
+import { parseDateStr, toDateStr, todayStr } from '@/utils/dates';
+import { errorMessage } from '@/utils/helpers';
 
-const WATER_TARGET_ML = 3000;
-const QUICK_ML = [250, 500, 750];
+const MEAL_ICONS: Record<MealType, keyof typeof MaterialCommunityIcons.glyphMap> = {
+  breakfast: 'coffee-outline',
+  lunch: 'food-outline',
+  dinner: 'silverware-fork-knife',
+  snack: 'cookie-outline',
+};
 
-export default function FuelScreen() {
-  const theme = useTheme();
-  const foodDate = useDataStore((s) => s.foodDate);
-  const foodByDate = useDataStore((s) => s.foodByDate);
-  const caloriesByDate = useDataStore((s) => s.caloriesByDate);
-  const setFoodDate = useDataStore((s) => s.setFoodDate);
-  const loadFood = useDataStore((s) => s.loadFood);
+const sum = (xs: (number | null)[]) => xs.reduce<number>((s, x) => s + (x ?? 0), 0);
 
-  const [showAdd, setShowAdd] = useState(false);
-  const [editing, setEditing] = useState<FoodLogEntry | null>(null);
-  const [hydration, setHydration] = useState<HydrationEntry[]>([]);
-  const [waterTotal, setWaterTotal] = useState(0);
-
-  const reloadHydration = useCallback(async (date: string) => {
-    const [list, total] = await Promise.all([listHydrationByDate(date), totalHydrationMl(date)]);
-    setHydration(list);
-    setWaterTotal(total);
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      const d = todayStr();
-      loadFood(d);
-      reloadHydration(d);
-    }, [loadFood, reloadHydration]),
-  );
-
-  const onDateChange = async (d: string) => {
-    await setFoodDate(d);
-    await reloadHydration(d);
+async function loadFuel(date: string) {
+  const start = parseDateStr(date);
+  start.setDate(start.getDate() - 6);
+  const from = toDateStr(start);
+  const [week, water] = await Promise.all([listFoodBetween(from, date), listHydrationByDate(date)]);
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    return toDateStr(d);
+  });
+  const meals = week.filter((f) => f.date === date);
+  return {
+    meals,
+    water,
+    waterMl: sum(water.map((w) => w.amountMl)),
+    kcal: sum(meals.map((m) => m.calories)),
+    protein: sum(meals.map((m) => m.protein)),
+    carbs: sum(meals.map((m) => m.carbs)),
+    fat: sum(meals.map((m) => m.fat)),
+    weekKcal: days.map((d) => sum(week.filter((f) => f.date === d).map((f) => f.calories))),
+    weekLabels: days.map((d) => parseDateStr(d).toLocaleDateString('en-US', { weekday: 'narrow' })),
   };
-
-  const meals = foodByDate[foodDate] ?? [];
-  const calories = caloriesByDate[foodDate] ?? 0;
-  const ink = theme.dark ? palette.orchidWhite : palette.warmBlack;
-  const muted = theme.dark ? palette.chromeWhite : palette.masala;
-  const waterProgress = Math.min(1, waterTotal / WATER_TARGET_ML);
-
-  const addWater = async (ml: number) => {
-    await addHydration(foodDate, ml);
-    await reloadHydration(foodDate);
-  };
-
-  const removeMeal = async (id: number) => {
-    await deleteFoodLog(id);
-    await loadFood(foodDate);
-  };
-
-  return (
-    <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
-      <ScrollView contentContainerStyle={styles.pad} keyboardShouldPersistTaps="handled">
-        <MonthCalendar
-          value={foodDate}
-          onChange={onDateChange}
-          maximumDate={new Date()}
-          markedDates={Object.keys(foodByDate).filter((d) => (foodByDate[d]?.length ?? 0) > 0)}
-        />
-
-        <GlassCard style={styles.block} contentStyle={styles.blockPad}>
-          <Text style={[styles.blockTitle, { color: ink }]}>Hydration</Text>
-          <Text style={[styles.waterBig, { color: ink }]}>
-            {waterTotal}
-            <Text style={[styles.waterUnit, { color: muted }]}> / {WATER_TARGET_ML} ml</Text>
-          </Text>
-          <ProgressBar progress={waterProgress} color={palette.vermillion} style={styles.bar} />
-          <View style={styles.quickRow}>
-            {QUICK_ML.map((ml) => (
-              <Button
-                key={ml}
-                mode="outlined"
-                compact
-                onPress={() => addWater(ml)}
-                textColor={ink}
-                style={styles.quickBtn}>
-                +{ml}ml
-              </Button>
-            ))}
-          </View>
-          {hydration.slice(0, 3).map((h) => (
-            <View key={h.id} style={styles.hydroRow}>
-              <Text style={{ color: muted }}>{h.amountMl} ml</Text>
-              <MaterialCommunityIcons
-                name="close"
-                size={16}
-                color={muted}
-                onPress={async () => {
-                  await deleteHydration(h.id);
-                  await reloadHydration(foodDate);
-                }}
-              />
-            </View>
-          ))}
-        </GlassCard>
-
-        <View style={styles.headerRow}>
-          <Text style={[styles.blockTitle, { color: ink }]}>Food log</Text>
-          <Button
-            mode="contained"
-            compact
-            buttonColor={palette.vermillion}
-            textColor="#fff"
-            style={{ borderRadius: radii.pill }}
-            onPress={() => {
-              setEditing(null);
-              setShowAdd(true);
-            }}>
-            Add meal
-          </Button>
-        </View>
-
-        <GlassCard contentStyle={styles.blockPad}>
-          <Text style={{ color: muted }}>{formatDate(foodDate)}</Text>
-          <Text style={[styles.calBig, { color: ink }]}>
-            {calories}
-            <Text style={[styles.waterUnit, { color: muted }]}> kcal</Text>
-          </Text>
-        </GlassCard>
-
-        {meals.length === 0 ? (
-          <EmptyState icon="food-apple-outline" title="No meals" message="Log what you eat today." />
-        ) : (
-          <View style={styles.list}>
-            {meals.map((m) => (
-              <GlassCard key={m.id} contentStyle={styles.mealRow}>
-                {m.photoUri ? (
-                  <Image source={{ uri: m.photoUri }} style={styles.thumb} />
-                ) : (
-                  <View style={[styles.thumb, styles.thumbEmpty]}>
-                    <MaterialCommunityIcons name="food" size={18} color={muted} />
-                  </View>
-                )}
-                <View style={{ flex: 1 }} onTouchEnd={() => { setEditing(m); setShowAdd(true); }}>
-                  <Text style={{ color: ink, fontWeight: '700' }}>{m.name}</Text>
-                  <Text style={{ color: muted, fontSize: 12 }}>
-                    {m.mealType}
-                    {m.calories != null ? ` · ${m.calories} kcal` : ''}
-                  </Text>
-                </View>
-                <MaterialCommunityIcons
-                  name="delete-outline"
-                  size={20}
-                  color={muted}
-                  onPress={() => removeMeal(m.id)}
-                />
-              </GlassCard>
-            ))}
-          </View>
-        )}
-      </ScrollView>
-
-      <Portal>
-        <AddMealModal
-          visible={showAdd}
-          initial={editing}
-          defaultDate={foodDate}
-          onDismiss={() => {
-            setShowAdd(false);
-            setEditing(null);
-          }}
-          onSaved={async () => {
-            setShowAdd(false);
-            setEditing(null);
-            await loadFood(foodDate);
-          }}
-        />
-      </Portal>
-    </View>
-  );
 }
 
-function AddMealModal({
-  visible,
-  initial,
-  defaultDate,
-  onDismiss,
-  onSaved,
-}: {
-  visible: boolean;
-  initial: FoodLogEntry | null;
-  defaultDate: string;
-  onDismiss: () => void;
-  onSaved: () => void;
-}) {
-  const theme = useTheme();
-  const [date, setDate] = useState(defaultDate);
-  const [mealType, setMealType] = useState<MealType>('breakfast');
-  const [name, setName] = useState('');
-  const [calories, setCalories] = useState('');
-  const [protein, setProtein] = useState('');
-  const [carbs, setCarbs] = useState('');
-  const [fat, setFat] = useState('');
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
+export default function FuelScreen() {
+  const [date, setDate] = useState(todayStr());
+  const { data } = useFocusData(useCallback(() => loadFuel(date), [date]));
+  const [sheet, setSheet] = useState<{ open: boolean; entry: FoodLogEntry | null }>({ open: false, entry: null });
 
-  useEffect(() => {
-    if (!visible) return;
-    if (initial) {
-      setDate(initial.date);
-      setMealType(initial.mealType);
-      setName(initial.name);
-      setCalories(initial.calories != null ? String(initial.calories) : '');
-      setProtein(initial.protein != null ? String(initial.protein) : '');
-      setCarbs(initial.carbs != null ? String(initial.carbs) : '');
-      setFat(initial.fat != null ? String(initial.fat) : '');
-      setPhotoUri(initial.photoUri);
-    } else {
-      setDate(defaultDate);
-      setMealType('breakfast');
-      setName('');
-      setCalories('');
-      setProtein('');
-      setCarbs('');
-      setFat('');
-      setPhotoUri(null);
+  const addWater = async (ml: number) => {
+    try {
+      await addHydration(date, ml);
+      bumpData();
+      toast(`+${ml} ml water`, 'cup-water');
+    } catch (e) {
+      toast(errorMessage(e, 'Could not log water.'), 'alert-circle');
     }
-    setError('');
-  }, [visible, initial, defaultDate]);
-
-  const pickPhoto = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.6 });
-    if (!result.canceled && result.assets[0]) setPhotoUri(result.assets[0].uri);
   };
 
-  const save = async () => {
-    if (!name.trim()) {
-      setError('Enter a meal name');
-      return;
-    }
-    setBusy(true);
-    const input: FoodLogInput = {
-      date,
-      mealType,
-      name: name.trim(),
-      calories: calories ? Number(calories) : null,
-      protein: protein ? Number(protein) : null,
-      carbs: carbs ? Number(carbs) : null,
-      fat: fat ? Number(fat) : null,
-      photoUri,
-    };
-    if (initial) await updateFoodLog(initial.id, input);
-    else await addFoodLog(input);
-    setBusy(false);
-    onSaved();
-  };
+  const removeWater = (id: number, ml: number) =>
+    confirmDestructive('Remove water?', `${ml} ml will be removed.`, async () => {
+      await deleteHydration(id);
+      bumpData();
+    });
+
+  const glasses = Math.round((data?.waterMl ?? 0) / GOALS.glassMl);
+  const goalGlasses = GOALS.waterMl / GOALS.glassMl;
+  const macroTotal = (data?.protein ?? 0) * 4 + (data?.carbs ?? 0) * 4 + (data?.fat ?? 0) * 9 || 1;
 
   return (
-    <Modal visible={visible} onDismiss={onDismiss} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }]}>
-      <Text style={{ fontWeight: '800', fontSize: 18 }}>{initial ? 'Edit meal' : 'Add meal'}</Text>
-      <DateField value={date} onChange={setDate} maximumDate={new Date()} />
-      <View style={styles.chips}>
-        {MEAL_TYPES.map((t) => (
-          <Chip key={t.value} selected={t.value === mealType} onPress={() => setMealType(t.value as MealType)} showSelectedCheck={false}>
-            {t.label}
-          </Chip>
-        ))}
-      </View>
-      <TextInput mode="outlined" label="Meal" value={name} onChangeText={setName} style={{ marginTop: 8 }} />
-      <NumberField label="Calories" value={calories} onChange={setCalories} />
-      <NumberField label="Protein" value={protein} onChange={setProtein} decimal />
-      <NumberField label="Carbs" value={carbs} onChange={setCarbs} decimal />
-      <NumberField label="Fat" value={fat} onChange={setFat} decimal />
-      <Button mode="outlined" icon="camera" onPress={pickPhoto} style={{ marginTop: 8 }}>
-        Photo
-      </Button>
-      <HelperText type="error" visible={!!error}>
-        {error}
-      </HelperText>
-      <View style={styles.modalActions}>
-        <Button onPress={onDismiss}>Cancel</Button>
-        <Button mode="contained" buttonColor={palette.vermillion} textColor="#fff" loading={busy} onPress={save}>
-          Save
-        </Button>
-      </View>
-    </Modal>
+    <Screen
+      back
+      eyebrow="Health"
+      title="Fuel"
+      subtitle="Meals, macros and water."
+      right={<IconButton icon="plus" tone="ink" label="Log a meal" onPress={() => setSheet({ open: true, entry: null })} />}>
+      <DayStepper date={date} onChange={setDate} />
+
+      <Card index={0} tone="peach">
+        <CardHead label="Energy" icon="fire" tone="peach" />
+        <View style={styles.hero}>
+          <View style={styles.flex}>
+            <CountUp value={data?.kcal ?? 0} variant="display" color={ON_PASTEL} />
+            <Text variant="small" color={ON_PASTEL_MUTED}>
+              of {GOALS.calories.toLocaleString()} kcal
+            </Text>
+          </View>
+          <Ring progress={(data?.kcal ?? 0) / GOALS.calories} color={ON_PASTEL} track="rgba(20,20,19,0.12)" size={80}>
+            <MaterialCommunityIcons name="silverware-fork-knife" size={22} color={ON_PASTEL} />
+          </Ring>
+        </View>
+        <View style={{ gap: space.sm, marginTop: space.md }}>
+          {(
+            [
+              ['Protein', data?.protein ?? 0, 4],
+              ['Carbs', data?.carbs ?? 0, 4],
+              ['Fat', data?.fat ?? 0, 9],
+            ] as const
+          ).map(([label, grams, kcalPerG]) => (
+            <View key={label} style={styles.macro}>
+              <Text variant="small" color={ON_PASTEL} style={{ width: 58 }}>
+                {label}
+              </Text>
+              <View style={styles.flex}>
+                <Meter progress={(grams * kcalPerG) / macroTotal} color={ON_PASTEL} track="rgba(20,20,19,0.12)" />
+              </View>
+              <Text variant="small" color={ON_PASTEL} style={{ width: 48, textAlign: 'right' }}>
+                {Math.round(grams)} g
+              </Text>
+            </View>
+          ))}
+        </View>
+      </Card>
+
+      <Card index={1} tone="sky">
+        <CardHead label={`Water · ${((data?.waterMl ?? 0) / 1000).toFixed(2)} L`} icon="cup-water" tone="sky" />
+        <Text variant="display" color={ON_PASTEL}>
+          {glasses}
+          <Text variant="h2" color={ON_PASTEL_MUTED}>
+            {' '}
+            of {goalGlasses} glasses
+          </Text>
+        </Text>
+        <View style={styles.glasses}>
+          {Array.from({ length: Math.max(goalGlasses, glasses) }, (_, i) => (
+            <Tap key={i} onPress={() => void addWater(GOALS.glassMl)} scaleTo={0.8} accessibilityLabel="Add a glass of water">
+              <MaterialCommunityIcons name={i < glasses ? 'water' : 'water-plus-outline'} size={30} color={ON_PASTEL} />
+            </Tap>
+          ))}
+        </View>
+        <Row style={{ marginTop: space.md }}>
+          <Button label="+250 ml" small kind="ink" onPress={() => void addWater(250)} style={styles.flex} />
+          <Button label="+500 ml" small kind="ink" onPress={() => void addWater(500)} style={styles.flex} />
+        </Row>
+        {data?.water.length ? (
+          <Text variant="small" color={ON_PASTEL_MUTED} style={{ marginTop: space.sm }}>
+            Long-press a drop entry below to remove it.
+          </Text>
+        ) : null}
+        <View style={styles.waterLog}>
+          {data?.water.map((w) => (
+            <Tap key={w.id} onLongPress={() => removeWater(w.id, w.amountMl)} style={styles.waterChip} accessibilityLabel={`${w.amountMl} ml, long-press to remove`}>
+              <Text variant="small" color={ON_PASTEL}>
+                {w.amountMl} ml
+              </Text>
+            </Tap>
+          ))}
+        </View>
+      </Card>
+
+      <Card index={2} tone="butter">
+        <CardHead label="Calories · 7 days" icon="chart-bar" tone="butter" />
+        <Bars values={data?.weekKcal ?? Array(7).fill(0)} labels={data?.weekLabels} labelColor={ON_PASTEL_MUTED} color={ON_PASTEL} dim="rgba(20,20,19,0.25)" highlight={6} barWidth={14} height={80} />
+      </Card>
+
+      {MEAL_TYPES.map(({ value, label }) => {
+        const items = data?.meals.filter((m) => m.mealType === value) ?? [];
+        return (
+          <View key={value} style={{ gap: space.sm }}>
+            <Section
+              title={label}
+              right={
+                <Text variant="small" muted>
+                  {sum(items.map((i) => i.calories))} kcal
+                </Text>
+              }
+            />
+            {items.map((m, i) => (
+              <ListItem
+                key={m.id}
+                index={i}
+                icon={MEAL_ICONS[value as MealType]}
+                iconTone="peach"
+                title={m.name}
+                subtitle={[m.protein != null && `P ${m.protein}g`, m.carbs != null && `C ${m.carbs}g`, m.fat != null && `F ${m.fat}g`].filter(Boolean).join(' · ') || null}
+                value={m.calories != null ? `${m.calories}` : undefined}
+                onPress={() => setSheet({ open: true, entry: m })}
+              />
+            ))}
+          </View>
+        );
+      })}
+      {data && data.meals.length === 0 ? (
+        <Empty icon="food-apple-outline" title="No meals logged" body="Tap + to log what you ate." action={<Button label="Log a meal" small onPress={() => setSheet({ open: true, entry: null })} />} />
+      ) : null}
+
+      <MealSheet open={sheet.open} entry={sheet.entry} date={date} onClose={() => setSheet({ open: false, entry: null })} />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  pad: { padding: 16, paddingBottom: 120 },
-  block: { marginTop: 14 },
-  blockPad: { paddingVertical: 14 },
-  blockTitle: { fontSize: 16, fontWeight: '800' },
-  waterBig: { fontSize: 32, fontWeight: '800', marginTop: 6 },
-  waterUnit: { fontSize: 14, fontWeight: '500' },
-  bar: { marginTop: 10, height: 8, borderRadius: 4, backgroundColor: 'rgba(204,197,185,0.35)' },
-  quickRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  quickBtn: { borderRadius: radii.pill, borderColor: palette.chromeWhite },
-  hydroRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 18, marginBottom: 10 },
-  calBig: { fontSize: 28, fontWeight: '800', marginTop: 4 },
-  list: { gap: 8, marginTop: 10 },
-  mealRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  thumb: { width: 44, height: 44, borderRadius: 10 },
-  thumbEmpty: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(204,197,185,0.35)' },
-  modal: { margin: 20, borderRadius: radii.xl, padding: 18, maxHeight: '90%' },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 12 },
+  flex: { flex: 1 },
+  hero: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  macro: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  glasses: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: space.sm },
+  waterLog: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: space.sm },
+  waterChip: { backgroundColor: 'rgba(20,20,19,0.08)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
 });

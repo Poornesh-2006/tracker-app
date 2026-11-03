@@ -1,354 +1,132 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import {
-  Button,
-  Chip,
-  HelperText,
-  Modal,
-  Portal,
-  Text,
-  TextInput,
-  useTheme,
-} from 'react-native-paper';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
-
-import { GlassCard } from '@/components/GlassCard';
-import { EmptyState } from '@/components/EmptyState';
-import { DateField } from '@/components/DateField';
-import { NumberField } from '@/components/NumberField';
-import { MetricsCard } from '@/components/MetricsCard';
-import { INTENSITY_LABELS } from '@/constants/metrics';
-import { WORKOUT_TYPES } from '@/constants/workout-calculations';
-import { summarizeWorkoutsWeek } from '@/utils/calculations';
-import { useDataStore } from '@/stores/data';
-import { addWorkout, deleteWorkout, updateWorkout } from '@/services/workout-service';
-import { upsertDailyMetrics } from '@/services/metrics-service';
+import { useCallback, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { Bars, Card, CardHead, CountUp, Empty, IconButton, ListItem, Ring, Row, Screen, Section, Text, Button } from '@/components/ui';
+import { MetricsSheet, WorkoutSheet } from '@/components/forms/EntrySheets';
+import { GOALS } from '@/constants/goals';
+import { ON_PASTEL, ON_PASTEL_MUTED, space, useTheme } from '@/constants/theme';
+import { useFocusData } from '@/hooks/useFocusData';
 import { calculateRecoveryScore } from '@/services/ai-engine';
-import { palette, radii } from '@/constants/theme';
-import type { DailyMetricsInput, WorkoutEntry, WorkoutInput } from '@/types';
-import { formatDate, todayStr } from '@/utils/dates';
+import { listDailyMetricsBetween } from '@/services/metrics-service';
+import { listWorkouts } from '@/services/workout-service';
+import type { WorkoutEntry } from '@/types';
+import { daysAgo, formatDate, parseDateStr, todayStr } from '@/utils/dates';
+
+async function loadGym() {
+  const today = todayStr();
+  const days = Array.from({ length: 7 }, (_, i) => daysAgo(6 - i));
+  const [workouts, metrics] = await Promise.all([listWorkouts(60), listDailyMetricsBetween(days[0], today)]);
+  const week = workouts.filter((w) => w.date >= days[0]);
+  const m = metrics.find((x) => x.date === today) ?? null;
+  return {
+    workouts,
+    weekMin: week.reduce((s, w) => s + (w.durationMin ?? 0), 0),
+    weekKcal: week.reduce((s, w) => s + (w.calories ?? 0), 0),
+    sessions: week.length,
+    perDay: days.map((d) => week.filter((w) => w.date === d).reduce((s, w) => s + (w.durationMin ?? 0), 0)),
+    labels: days.map((d) => parseDateStr(d).toLocaleDateString('en-US', { weekday: 'narrow' })),
+    steps: m?.steps ?? null,
+    sleep: m?.sleepHours ?? null,
+    recovery: m?.recoveryScore ?? (m ? calculateRecoveryScore(m) : null),
+  };
+}
+
+function advice(score: number | null): string {
+  if (score == null) return 'Log sleep, heart rate and stress to get a recovery score.';
+  if (score >= 75) return 'Green light — a hard session or PR attempt fits today.';
+  if (score >= 55) return 'Moderate day — steady cardio or technique work.';
+  return 'Recovery day — mobility, a walk, and an early night.';
+}
 
 export default function GymScreen() {
-  const theme = useTheme();
-  const workouts = useDataStore((s) => s.workouts);
-  const metrics = useDataStore((s) => s.metrics);
-  const reloadWorkouts = useDataStore((s) => s.reloadWorkouts);
-  const reloadMetrics = useDataStore((s) => s.reloadMetrics);
-  const loadDashboard = useDataStore((s) => s.loadDashboard);
-
-  const [showAdd, setShowAdd] = useState(false);
-  const [editing, setEditing] = useState<WorkoutEntry | null>(null);
-  const [showActivity, setShowActivity] = useState(false);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadDashboard();
-      reloadWorkouts();
-    }, [loadDashboard, reloadWorkouts]),
-  );
-
-  const week = useMemo(() => summarizeWorkoutsWeek(workouts), [workouts]);
-  const latest = metrics.length ? metrics[metrics.length - 1] : null;
-  const ink = theme.dark ? palette.orchidWhite : palette.warmBlack;
-  const muted = theme.dark ? palette.chromeWhite : palette.masala;
-
-  const remove = async (id: number) => {
-    await deleteWorkout(id);
-    await reloadWorkouts();
-  };
+  const { tone } = useTheme();
+  const { data } = useFocusData(useCallback(loadGym, []));
+  const [sheet, setSheet] = useState<{ open: boolean; entry: WorkoutEntry | null }>({ open: false, entry: null });
+  const [checkIn, setCheckIn] = useState(false);
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
-      <ScrollView contentContainerStyle={styles.pad} keyboardShouldPersistTaps="handled">
-        <GlassCard contentStyle={styles.weekPad}>
-          <Text style={[styles.title, { color: ink }]}>This week</Text>
-          <View style={styles.weekRow}>
-            <Stat label="Sessions" value={String(week.count)} />
-            <Stat label="Minutes" value={String(week.durationMin)} />
-            <Stat label="kcal" value={String(week.calories)} />
+    <Screen
+      back
+      eyebrow="Health"
+      title="Gym & activity"
+      subtitle="Training load, steps, sleep and recovery."
+      right={<IconButton icon="plus" tone="ink" label="Log a workout" onPress={() => setSheet({ open: true, entry: null })} />}>
+      <Card index={0} tone="sage">
+        <CardHead label="This week" icon="dumbbell" tone="sage" />
+        <View style={styles.hero}>
+          <View style={styles.flex}>
+            <CountUp value={data?.weekMin ?? 0} variant="display" color={ON_PASTEL} suffix=" min" />
+            <Text variant="small" color={ON_PASTEL_MUTED}>
+              {data?.sessions ?? 0} sessions · {data?.weekKcal ?? 0} kcal burned
+            </Text>
           </View>
-        </GlassCard>
-
-        <Text style={[styles.title, { color: ink, marginTop: 16 }]}>Physical load</Text>
-        <MetricsCard
-          heartRate={latest?.heartRate}
-          steps={latest?.steps}
-          sleepHours={latest?.sleepHours}
-          stress={latest?.stress}
-        />
-        <Button
-          mode="outlined"
-          style={styles.activityBtn}
-          textColor={ink}
-          onPress={() => setShowActivity(true)}>
-          Log steps / sleep / sitting
-        </Button>
-
-        <View style={styles.headerRow}>
-          <Text style={[styles.title, { color: ink }]}>Workouts</Text>
-          <Button
-            mode="contained"
-            compact
-            buttonColor={palette.vermillion}
-            textColor="#fff"
-            style={{ borderRadius: radii.pill }}
-            onPress={() => {
-              setEditing(null);
-              setShowAdd(true);
-            }}>
-            Log workout
-          </Button>
+          <Ring progress={(data?.weekMin ?? 0) / GOALS.workoutMinPerWeek} color={ON_PASTEL} track="rgba(20,20,19,0.12)" size={80}>
+            <Text variant="label" color={ON_PASTEL} style={{ fontSize: 10 }}>
+              {Math.round(((data?.weekMin ?? 0) / GOALS.workoutMinPerWeek) * 100)}%
+            </Text>
+          </Ring>
         </View>
+        <View style={{ marginTop: space.md }}>
+          <Bars values={data?.perDay ?? Array(7).fill(0)} labels={data?.labels} labelColor={ON_PASTEL_MUTED} color={ON_PASTEL} dim="rgba(20,20,19,0.25)" highlight={6} barWidth={14} height={70} />
+        </View>
+      </Card>
 
-        {workouts.length === 0 ? (
-          <EmptyState icon="dumbbell" title="No workouts" message="Log training, walks, or gym sessions." />
-        ) : (
-          <View style={styles.list}>
-            {workouts.map((w) => (
-              <GlassCard key={w.id} contentStyle={styles.item}>
-                <View style={[styles.icon, { backgroundColor: palette.vermillion + '18' }]}>
-                  <MaterialCommunityIcons name="dumbbell" size={18} color={palette.vermillion} />
-                </View>
-                <View style={{ flex: 1 }} onTouchEnd={() => { setEditing(w); setShowAdd(true); }}>
-                  <Text style={{ color: ink, fontWeight: '700' }}>{w.name}</Text>
-                  <Text style={{ color: muted, fontSize: 12 }}>
-                    {formatDate(w.date)}
-                    {w.durationMin != null ? ` · ${w.durationMin} min` : ''}
-                    {w.intensity != null ? ` · ${INTENSITY_LABELS[w.intensity]}` : ''}
-                  </Text>
-                </View>
-                <MaterialCommunityIcons name="delete-outline" size={20} color={muted} onPress={() => remove(w.id)} />
-              </GlassCard>
-            ))}
-          </View>
-        )}
-      </ScrollView>
+      <Row>
+        <Card index={1} style={styles.flex} onPress={() => setCheckIn(true)} accessibilityLabel="Steps today, tap to update">
+          <CardHead label="Steps" icon="shoe-print" />
+          <Text variant="num">{data?.steps != null ? data.steps.toLocaleString() : '–'}</Text>
+          <Text variant="small" muted>
+            goal {GOALS.steps.toLocaleString()}
+          </Text>
+        </Card>
+        <Card index={2} tone="lavender" style={styles.flex} onPress={() => setCheckIn(true)} accessibilityLabel="Sleep, tap to update">
+          <CardHead label="Sleep" icon="weather-night" tone="lavender" />
+          <Text variant="num" color={ON_PASTEL}>
+            {data?.sleep ?? '–'}
+            <Text variant="small" color={ON_PASTEL_MUTED}>
+              {' '}
+              h
+            </Text>
+          </Text>
+          <Text variant="small" color={ON_PASTEL_MUTED}>
+            goal {GOALS.sleepHours} h
+          </Text>
+        </Card>
+      </Row>
 
-      <Portal>
-        <AddWorkoutModal
-          visible={showAdd}
-          initial={editing}
-          onDismiss={() => {
-            setShowAdd(false);
-            setEditing(null);
-          }}
-          onSaved={async () => {
-            setShowAdd(false);
-            setEditing(null);
-            await reloadWorkouts();
-          }}
+      <Card index={3} tone="accent" onPress={() => setCheckIn(true)}>
+        <CardHead label="Recovery" icon="lightning-bolt" tone="accent" />
+        <Text variant="display" color="#fff">
+          {data?.recovery ?? '–'}
+        </Text>
+        <Text variant="small" color={tone('accent').muted}>
+          {advice(data?.recovery ?? null)}
+        </Text>
+      </Card>
+
+      <Section title="Workouts" />
+      {data?.workouts.map((w, i) => (
+        <ListItem
+          key={w.id}
+          index={i}
+          icon="dumbbell"
+          iconTone="sage"
+          title={w.name}
+          subtitle={[formatDate(w.date), w.durationMin && `${w.durationMin} min`, w.intensity && `intensity ${w.intensity}/5`].filter(Boolean).join(' · ')}
+          value={w.calories != null ? `${w.calories} kcal` : undefined}
+          onPress={() => setSheet({ open: true, entry: w })}
         />
-        <ActivityModal
-          visible={showActivity}
-          initial={latest}
-          onDismiss={() => setShowActivity(false)}
-          onSaved={async () => {
-            setShowActivity(false);
-            await reloadMetrics();
-            await loadDashboard();
-          }}
-        />
-      </Portal>
-    </View>
-  );
-}
+      ))}
+      {data && data.workouts.length === 0 ? (
+        <Empty icon="dumbbell" title="No workouts yet" body="Log your first session to start your streak." action={<Button label="Log workout" small onPress={() => setSheet({ open: true, entry: null })} />} />
+      ) : null}
 
-function Stat({ label, value }: { label: string; value: string }) {
-  const theme = useTheme();
-  return (
-    <View style={{ alignItems: 'center' }}>
-      <Text style={{ fontSize: 26, fontWeight: '800', color: theme.colors.onSurface }}>{value}</Text>
-      <Text style={{ fontSize: 12, color: theme.colors.onSurfaceVariant }}>{label}</Text>
-    </View>
-  );
-}
-
-function AddWorkoutModal({
-  visible,
-  initial,
-  onDismiss,
-  onSaved,
-}: {
-  visible: boolean;
-  initial: WorkoutEntry | null;
-  onDismiss: () => void;
-  onSaved: () => void;
-}) {
-  const theme = useTheme();
-  const [date, setDate] = useState(todayStr());
-  const [name, setName] = useState('');
-  const [duration, setDuration] = useState('');
-  const [intensity, setIntensity] = useState<number | null>(null);
-  const [calories, setCalories] = useState('');
-  const [notes, setNotes] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!visible) return;
-    if (initial) {
-      setDate(initial.date);
-      setName(initial.name);
-      setDuration(initial.durationMin != null ? String(initial.durationMin) : '');
-      setIntensity(initial.intensity);
-      setCalories(initial.calories != null ? String(initial.calories) : '');
-      setNotes(initial.notes ?? '');
-    } else {
-      setDate(todayStr());
-      setName('');
-      setDuration('');
-      setIntensity(null);
-      setCalories('');
-      setNotes('');
-    }
-    setError('');
-  }, [visible, initial]);
-
-  const save = async () => {
-    if (!name.trim()) {
-      setError('Enter activity name');
-      return;
-    }
-    setBusy(true);
-    const input: WorkoutInput = {
-      date,
-      name: name.trim(),
-      durationMin: duration ? Number(duration) : null,
-      intensity,
-      calories: calories ? Number(calories) : null,
-      notes: notes || null,
-    };
-    if (initial) await updateWorkout(initial.id, input);
-    else await addWorkout(input);
-    setBusy(false);
-    onSaved();
-  };
-
-  return (
-    <Modal visible={visible} onDismiss={onDismiss} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }]}>
-      <Text style={{ fontWeight: '800', fontSize: 18 }}>{initial ? 'Edit workout' : 'Log workout'}</Text>
-      <DateField value={date} onChange={setDate} maximumDate={new Date()} />
-      <View style={styles.chips}>
-        {WORKOUT_TYPES.map((t) => (
-          <Chip key={t} selected={name === t} onPress={() => setName(t)} showSelectedCheck={false}>
-            {t}
-          </Chip>
-        ))}
-      </View>
-      <TextInput mode="outlined" label="Name" value={name} onChangeText={setName} style={{ marginTop: 8 }} />
-      <NumberField label="Duration (min)" value={duration} onChange={setDuration} />
-      <NumberField label="Calories" value={calories} onChange={setCalories} />
-      <View style={styles.chips}>
-        {[1, 2, 3, 4, 5].map((i) => (
-          <Chip key={i} selected={intensity === i} onPress={() => setIntensity(i)} showSelectedCheck={false}>
-            {INTENSITY_LABELS[i]}
-          </Chip>
-        ))}
-      </View>
-      <TextInput mode="outlined" label="Notes" value={notes} onChangeText={setNotes} style={{ marginTop: 8 }} />
-      <HelperText type="error" visible={!!error}>
-        {error}
-      </HelperText>
-      <View style={styles.modalActions}>
-        <Button onPress={onDismiss}>Cancel</Button>
-        <Button mode="contained" buttonColor={palette.vermillion} textColor="#fff" loading={busy} onPress={save}>
-          Save
-        </Button>
-      </View>
-    </Modal>
-  );
-}
-
-function ActivityModal({
-  visible,
-  initial,
-  onDismiss,
-  onSaved,
-}: {
-  visible: boolean;
-  initial: { date: string; steps: number | null; sleepHours: number | null; heartRate: number | null; stress: number | null; weight: number | null; notes: string | null } | null;
-  onDismiss: () => void;
-  onSaved: () => void;
-}) {
-  const theme = useTheme();
-  const [date, setDate] = useState(todayStr());
-  const [steps, setSteps] = useState('');
-  const [sleep, setSleep] = useState('');
-  const [heartRate, setHeartRate] = useState('');
-  const [stress, setStress] = useState('');
-  const [sitting, setSitting] = useState('');
-  const [standing, setStanding] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!visible) return;
-    setDate(initial?.date ?? todayStr());
-    setSteps(initial?.steps != null ? String(initial.steps) : '');
-    setSleep(initial?.sleepHours != null ? String(initial.sleepHours) : '');
-    setHeartRate(initial?.heartRate != null ? String(initial.heartRate) : '');
-    setStress(initial?.stress != null ? String(initial.stress) : '');
-    setSitting('');
-    setStanding('');
-  }, [visible, initial]);
-
-  const save = async () => {
-    setBusy(true);
-    const notesBits = [
-      sitting ? `Sitting ${sitting}h` : null,
-      standing ? `Standing ${standing}h` : null,
-      initial?.notes,
-    ].filter(Boolean);
-    const input: DailyMetricsInput = {
-      date,
-      steps: steps ? Number(steps) : null,
-      sleepHours: sleep ? Number(sleep) : null,
-      heartRate: heartRate ? Number(heartRate) : null,
-      stress: stress ? Number(stress) : null,
-      recoveryScore: calculateRecoveryScore({
-        sleepHours: sleep ? Number(sleep) : null,
-        stress: stress ? Number(stress) : null,
-        heartRate: heartRate ? Number(heartRate) : null,
-      }),
-      notes: notesBits.length ? notesBits.join(' · ') : null,
-    };
-    await upsertDailyMetrics(input);
-    setBusy(false);
-    onSaved();
-  };
-
-  return (
-    <Modal visible={visible} onDismiss={onDismiss} contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }]}>
-      <Text style={{ fontWeight: '800', fontSize: 18 }}>Daily activity</Text>
-      <DateField value={date} onChange={setDate} maximumDate={new Date()} />
-      <NumberField label="Steps" value={steps} onChange={setSteps} />
-      <NumberField label="Sleep (hours)" value={sleep} onChange={setSleep} decimal />
-      <NumberField label="Heart rate" value={heartRate} onChange={setHeartRate} />
-      <NumberField label="Stress 1-10" value={stress} onChange={setStress} />
-      <NumberField label="Sitting (hours)" value={sitting} onChange={setSitting} decimal />
-      <NumberField label="Standing (hours)" value={standing} onChange={setStanding} decimal />
-      <View style={styles.modalActions}>
-        <Button onPress={onDismiss}>Cancel</Button>
-        <Button mode="contained" buttonColor={palette.vermillion} textColor="#fff" loading={busy} onPress={save}>
-          Save
-        </Button>
-      </View>
-    </Modal>
+      <WorkoutSheet open={sheet.open} entry={sheet.entry} onClose={() => setSheet({ open: false, entry: null })} />
+      <MetricsSheet open={checkIn} onClose={() => setCheckIn(false)} />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  pad: { padding: 16, paddingBottom: 120 },
-  weekPad: { paddingVertical: 14 },
-  title: { fontSize: 16, fontWeight: '800' },
-  weekRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 10 },
-  activityBtn: { marginTop: 10, borderRadius: radii.pill, borderColor: palette.chromeWhite },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 18, marginBottom: 10 },
-  list: { gap: 8 },
-  item: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  icon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  modal: { margin: 20, borderRadius: radii.xl, padding: 18, maxHeight: '90%' },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 12 },
+  flex: { flex: 1 },
+  hero: { flexDirection: 'row', alignItems: 'center', gap: space.md },
 });

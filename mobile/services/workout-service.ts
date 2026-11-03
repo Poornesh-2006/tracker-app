@@ -29,6 +29,10 @@ export function listWorkoutsForDate(date: string): Promise<WorkoutEntry[]> {
   return allAs<WorkoutEntry>(`SELECT * FROM workouts WHERE date = ? ORDER BY id DESC`, [date]);
 }
 
+export function listWorkoutsBetween(fromDate: string, toDate: string): Promise<WorkoutEntry[]> {
+  return allAs<WorkoutEntry>(`SELECT * FROM workouts WHERE date >= ? AND date <= ? ORDER BY date ASC, id ASC`, [fromDate, toDate]);
+}
+
 export async function updateWorkout(id: number, input: WorkoutInput): Promise<void> {
   const oldDate = await dateOf('workouts', id);
   await run(

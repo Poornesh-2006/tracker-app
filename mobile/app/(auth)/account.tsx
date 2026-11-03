@@ -1,177 +1,69 @@
-import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Divider, HelperText, Text, TextInput, useTheme } from 'react-native-paper';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useEffect, useState } from 'react';
+import { View } from 'react-native';
+import { AuthShell } from '@/components/nav/AuthShell';
+import { Button, Field, Segmented, Text } from '@/components/ui';
+import { useTheme } from '@/constants/theme';
 import { ACCOUNT_PASSWORD_MIN, useSupabaseAuthStore } from '@/stores/supabase-auth';
-import { GlassCard } from '@/components/GlassCard';
-import { palette, radii, spacing } from '@/constants/theme';
+
+type Mode = 'signin' | 'signup';
+const MODES = [
+  { value: 'signin' as Mode, label: 'Sign in' },
+  { value: 'signup' as Mode, label: 'Create account' },
+];
 
 export default function AccountScreen() {
-  const theme = useTheme();
-  const error = useSupabaseAuthStore((s) => s.error);
-  const notice = useSupabaseAuthStore((s) => s.notice);
-  const busy = useSupabaseAuthStore((s) => s.busy);
-  const signIn = useSupabaseAuthStore((s) => s.signIn);
-  const signUp = useSupabaseAuthStore((s) => s.signUp);
-  const signInWithGoogle = useSupabaseAuthStore((s) => s.signInWithGoogle);
-  const resetPassword = useSupabaseAuthStore((s) => s.resetPassword);
-  const clearError = useSupabaseAuthStore((s) => s.clearError);
-
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const { c } = useTheme();
+  const { error, notice, busy, signIn, signUp, signInWithGoogle, resetPassword, clearError } = useSupabaseAuthStore();
+  const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
 
-  const ink = theme.dark ? palette.orchidWhite : palette.warmBlack;
-  const muted = theme.dark ? palette.chromeWhite : palette.masala;
+  useEffect(() => clearError, [clearError]);
+
   const isSignIn = mode === 'signin';
   const tooShort = !isSignIn && password.length > 0 && password.length < ACCOUNT_PASSWORD_MIN;
+  const e = email.trim();
+  const canSubmit = !!e && !!password && !tooShort && !busy;
 
-  const submit = async () => {
-    const e = email.trim();
-    if (isSignIn) await signIn(e, password);
-    else await signUp(e, password);
+  const submit = () => {
+    if (!canSubmit) return;
+    void (isSignIn ? signIn(e, password) : signUp(e, password));
   };
 
   return (
-    <View style={[styles.flex, { backgroundColor: theme.colors.background }]}>
-      <SafeAreaView style={styles.flex}>
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            <View style={styles.logoWrap}>
-              <View style={styles.logo}>
-                <MaterialCommunityIcons name="account-outline" size={36} color="#fff" />
-              </View>
-              <Text style={[styles.title, { color: ink }]}>lif.os</Text>
-              <Text style={[styles.subtitle, { color: muted }]}>
-                {isSignIn ? 'Sign in to your account' : 'Create your account'}
-              </Text>
-            </View>
-
-            <GlassCard contentStyle={styles.form}>
-              <Button
-                mode="outlined"
-                icon="google"
-                onPress={signInWithGoogle}
-                disabled={busy}
-                textColor={ink}
-                style={styles.google}
-                contentStyle={styles.buttonContent}>
-                Continue with Google
-              </Button>
-
-              <View style={styles.dividerRow}>
-                <Divider style={styles.flex} />
-                <Text style={[styles.or, { color: muted }]}>or</Text>
-                <Divider style={styles.flex} />
-              </View>
-
-              <TextInput
-                label="Email"
-                mode="outlined"
-                value={email}
-                onChangeText={(v) => {
-                  setEmail(v);
-                  clearError();
-                }}
-                autoCapitalize="none"
-                autoComplete="email"
-                keyboardType="email-address"
-                outlineColor={palette.chromeWhite}
-                activeOutlineColor={palette.vermillion}
-                style={styles.input}
-              />
-              <TextInput
-                label="Password"
-                mode="outlined"
-                value={password}
-                onChangeText={(v) => {
-                  setPassword(v);
-                  clearError();
-                }}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                outlineColor={palette.chromeWhite}
-                activeOutlineColor={palette.vermillion}
-                right={
-                  <TextInput.Icon
-                    icon={showPassword ? 'eye-off' : 'eye'}
-                    onPress={() => setShowPassword((v) => !v)}
-                  />
-                }
-                style={styles.input}
-                onSubmitEditing={busy || !email || !password ? undefined : submit}
-              />
-              <HelperText type="error" visible={tooShort}>
-                Minimum {ACCOUNT_PASSWORD_MIN} characters.
-              </HelperText>
-              <HelperText type="error" visible={!!error}>
-                {error}
-              </HelperText>
-              <HelperText type="info" visible={!!notice}>
-                {notice}
-              </HelperText>
-
-              <Button
-                mode="contained"
-                onPress={submit}
-                loading={busy}
-                disabled={busy || !email || !password || tooShort}
-                buttonColor={palette.vermillion}
-                textColor="#fff"
-                style={styles.button}
-                contentStyle={styles.buttonContent}>
-                {isSignIn ? 'Sign in' : 'Create account'}
-              </Button>
-
-              <View style={styles.links}>
-                <Button
-                  mode="text"
-                  compact
-                  onPress={() => {
-                    clearError();
-                    setMode(isSignIn ? 'signup' : 'signin');
-                  }}>
-                  {isSignIn ? 'Create account' : 'I have an account'}
-                </Button>
-                {isSignIn && (
-                  <Button mode="text" compact onPress={() => resetPassword(email.trim())}>
-                    Forgot password?
-                  </Button>
-                )}
-              </View>
-            </GlassCard>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </View>
+    <AuthShell title={isSignIn ? 'Sign in.' : 'Join lif.os.'} subtitle="Your account backs up metrics, meals and workouts when you turn sync on.">
+      <Segmented
+        options={MODES}
+        value={mode}
+        onChange={(m) => {
+          setMode(m);
+          clearError();
+        }}
+      />
+      <Button label="Continue with Google" kind="ghost" icon="google" onPress={() => void signInWithGoogle()} disabled={busy} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={{ flex: 1, height: 1, backgroundColor: c.line }} />
+        <Text variant="label" muted>
+          or email
+        </Text>
+        <View style={{ flex: 1, height: 1, backgroundColor: c.line }} />
+      </View>
+      <Field label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" placeholder="you@example.com" />
+      <Field
+        label="Password"
+        value={password}
+        onChangeText={setPassword}
+        secure
+        onSubmit={submit}
+        error={tooShort ? `At least ${ACCOUNT_PASSWORD_MIN} characters.` : error}
+      />
+      {notice ? (
+        <Text variant="small" color={c.success} accessibilityRole="alert">
+          {notice}
+        </Text>
+      ) : null}
+      <Button label={isSignIn ? 'Sign in' : 'Create account'} onPress={submit} disabled={!canSubmit} loading={busy} />
+      {isSignIn ? <Button label="Forgot password?" kind="ghost" small onPress={() => void resetPassword(e)} disabled={busy} /> : null}
+    </AuthShell>
   );
 }
-
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  content: { padding: spacing.lg, flexGrow: 1, justifyContent: 'center' },
-  logoWrap: { alignItems: 'center', marginBottom: 28 },
-  logo: {
-    width: 72,
-    height: 72,
-    borderRadius: radii.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-    backgroundColor: palette.vermillion,
-  },
-  title: { fontSize: 30, fontWeight: '700', letterSpacing: 0.5 },
-  subtitle: { textAlign: 'center', marginTop: 8, fontSize: 14 },
-  form: { gap: 2 },
-  google: { borderRadius: radii.md },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 14 },
-  or: { fontSize: 12 },
-  input: { marginTop: 6, backgroundColor: 'transparent' },
-  button: { marginTop: 8, borderRadius: radii.md },
-  buttonContent: { paddingVertical: 6 },
-  links: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-});

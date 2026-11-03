@@ -1,112 +1,55 @@
-import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, HelperText, Text, TextInput, useTheme } from 'react-native-paper';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useEffect, useState } from 'react';
+import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
+import { AuthShell } from '@/components/nav/AuthShell';
+import { Button, Field, haptic } from '@/components/ui';
+import { useAsyncAction } from '@/hooks/useAsyncAction';
 import { useAuthStore } from '@/stores/auth';
-import { GlassCard } from '@/components/GlassCard';
-import { palette, radii, spacing } from '@/constants/theme';
+import { confirmDestructive } from '@/utils/confirm';
 
 export default function UnlockScreen() {
-  const theme = useTheme();
   const unlock = useAuthStore((s) => s.unlock);
+  const resetAll = useAuthStore((s) => s.resetAll);
   const error = useAuthStore((s) => s.error);
   const clearError = useAuthStore((s) => s.clearError);
-
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const { busy, run } = useAsyncAction();
+  const shake = useSharedValue(0);
 
-  const ink = theme.dark ? palette.orchidWhite : palette.warmBlack;
-  const muted = theme.dark ? palette.chromeWhite : palette.masala;
+  useEffect(() => clearError, [clearError]);
 
-  const onSubmit = async () => {
-    if (!password) return;
-    setBusy(true);
-    await unlock(password);
-    setBusy(false);
-  };
+  const submit = () =>
+    password &&
+    run(async () => {
+      const ok = await unlock(password);
+      if (!ok) {
+        haptic('warning');
+        shake.value = withSequence(
+          withTiming(-10, { duration: 50 }),
+          withTiming(10, { duration: 50 }),
+          withTiming(-6, { duration: 50 }),
+          withTiming(0, { duration: 50 }),
+        );
+        setPassword('');
+      }
+    });
+
+  const forgot = () =>
+    confirmDestructive(
+      'Reset lif.os?',
+      'Without your passcode, encrypted data can’t be recovered. This erases ALL data on this phone and starts fresh.',
+      () => void resetAll(),
+      'Erase everything',
+    );
+
+  const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value }] }));
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
-      <SafeAreaView style={styles.flex}>
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            <View style={styles.logoWrap}>
-              <View style={styles.logo}>
-                <MaterialCommunityIcons name="lock-outline" size={36} color="#fff" />
-              </View>
-              <Text style={[styles.title, { color: ink }]}>lif.os</Text>
-              <Text style={[styles.subtitle, { color: muted }]}>
-                Unlock to access your health data
-              </Text>
-            </View>
-
-            <GlassCard contentStyle={styles.form}>
-              <TextInput
-                label="Passcode"
-                mode="outlined"
-                value={password}
-                onChangeText={(v) => {
-                  setPassword(v);
-                  clearError();
-                }}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                autoFocus
-                outlineColor={palette.chromeWhite}
-                activeOutlineColor={palette.vermillion}
-                right={
-                  <TextInput.Icon
-                    icon={showPassword ? 'eye-off' : 'eye'}
-                    onPress={() => setShowPassword((v) => !v)}
-                  />
-                }
-                style={styles.input}
-                onSubmitEditing={onSubmit}
-              />
-              <HelperText type="error" visible={!!error}>
-                {error}
-              </HelperText>
-              <Button
-                mode="contained"
-                onPress={onSubmit}
-                loading={busy}
-                disabled={busy || !password}
-                buttonColor={palette.vermillion}
-                textColor="#fff"
-                style={styles.button}
-                contentStyle={styles.buttonContent}>
-                Unlock
-              </Button>
-            </GlassCard>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </View>
+    <AuthShell title="Welcome back." subtitle="Enter your passcode to unlock.">
+      <Animated.View style={shakeStyle}>
+        <Field label="Passcode" value={password} onChangeText={setPassword} secure autoFocus onSubmit={submit} error={error} />
+      </Animated.View>
+      <Button label="Unlock" icon="lock-open-variant-outline" onPress={submit} disabled={!password} loading={busy} />
+      <Button label="Forgot passcode?" kind="ghost" small onPress={forgot} />
+    </AuthShell>
   );
 }
-
-const styles = StyleSheet.create({
-  root: { flex: 1 },
-  flex: { flex: 1 },
-  content: { padding: spacing.lg, flexGrow: 1, justifyContent: 'center' },
-  logoWrap: { alignItems: 'center', marginBottom: 28 },
-  logo: {
-    width: 72,
-    height: 72,
-    borderRadius: radii.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-    backgroundColor: palette.vermillion,
-  },
-  title: { fontSize: 30, fontWeight: '700', letterSpacing: 0.5 },
-  subtitle: { textAlign: 'center', marginTop: 8, fontSize: 14 },
-  form: {},
-  input: { marginTop: 4, backgroundColor: 'transparent' },
-  button: { marginTop: 12, borderRadius: radii.md },
-  buttonContent: { paddingVertical: 6 },
-});
