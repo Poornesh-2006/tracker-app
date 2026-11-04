@@ -6,7 +6,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Card, Empty, Field, IconButton, ListItem, Screen, Section, Sheet, Tap, Text, toast } from '@/components/ui';
 import { askDelete, attempt } from '@/components/forms/actions';
 import { layoutGraph } from '@/components/brain/graphLayout';
-import { ON_PASTEL, pastel, space, useTheme } from '@/constants/theme';
+import { pastel, space, useTheme } from '@/constants/theme';
 import { useAsyncAction } from '@/hooks/useAsyncAction';
 import { useFocusData } from '@/hooks/useFocusData';
 import { bumpData } from '@/hooks/useDataVersion';
@@ -71,7 +71,7 @@ export default function GraphScreen() {
                     scaleTo={0.85}
                     accessibilityLabel={`${p.node.title}${p.node.learned ? ', learned' : ''}`}
                     style={[styles.dot, { borderRadius: r, backgroundColor: p.node.learned ? colorOf(p.root) : c.surface, borderColor: colorOf(p.root) }]}>
-                    {p.node.learned ? <MaterialCommunityIcons name="check" size={r} color={ON_PASTEL} /> : null}
+                    {p.node.learned ? <MaterialCommunityIcons name="check" size={r} color="#FFFFFF" /> : null}
                   </Tap>
                   {p.depth <= 1 ? (
                     <Text variant="small" numberOfLines={1} style={[styles.label, { width: 90, left: r - 45 }]}>

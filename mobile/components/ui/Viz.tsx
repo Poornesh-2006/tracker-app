@@ -9,9 +9,10 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Circle, Polyline, Rect } from 'react-native-svg';
-import { useTheme } from '@/constants/theme';
+import Svg, { Circle, Path, Polyline, Rect } from 'react-native-svg';
+
 import { Text, type Variant } from './Text';
+import { useCardColors } from './CardColors';
 
 /* ---------------------------------------------------------------- CountUp */
 
@@ -70,6 +71,7 @@ export function CountUp({
 /* ------------------------------------------------------------------- Ring */
 
 const ACircle = Animated.createAnimatedComponent(Circle);
+const APath = Animated.createAnimatedComponent(Path);
 
 /** Circular progress ring that sweeps to `progress` (0–1). */
 export function Ring({
@@ -83,11 +85,11 @@ export function Ring({
   progress: number;
   size?: number;
   stroke?: number;
-  color: string;
+  color?: string;
   track?: string;
   children?: React.ReactNode;
 }) {
-  const { dark } = useTheme();
+  const card = useCardColors();
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
   const p = useSharedValue(0);
@@ -105,7 +107,7 @@ export function Ring({
           cx={size / 2}
           cy={size / 2}
           r={r}
-          stroke={track ?? (dark ? 'rgba(255,255,255,0.08)' : 'rgba(20,20,19,0.08)')}
+          stroke={track ?? card.track}
           strokeWidth={stroke}
           fill="none"
         />
@@ -113,7 +115,7 @@ export function Ring({
           cx={size / 2}
           cy={size / 2}
           r={r}
-          stroke={color}
+          stroke={color ?? card.hi}
           strokeWidth={stroke}
           strokeLinecap="round"
           fill="none"
@@ -150,13 +152,16 @@ export function Bars({
 }: {
   values: number[];
   height?: number;
-  color: string;
+  color?: string;
   dim?: string;
   highlight?: number;
   barWidth?: number;
   labels?: string[];
   labelColor?: string;
 }) {
+  const card = useCardColors();
+  const on = color ?? card.hi;
+  const off = dim ?? card.track;
   const max = Math.max(1, ...values);
   return (
     <View>
@@ -167,14 +172,14 @@ export function Bars({
             h={(v / max) * height}
             width={barWidth}
             delay={i * 40}
-            color={highlight == null || highlight === i ? color : (dim ?? color)}
+            color={highlight == null || highlight === i ? on : off}
           />
         ))}
       </View>
       {labels ? (
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
           {labels.map((l, i) => (
-            <Text key={i} variant="label" color={labelColor} muted={!labelColor} style={{ width: barWidth + 8, textAlign: 'center', fontSize: 9 }}>
+            <Text key={i} variant="label" color={labelColor ?? card.muted} style={{ width: barWidth + 8, textAlign: 'center', fontSize: 9 }}>
               {l}
             </Text>
           ))}
@@ -187,16 +192,16 @@ export function Bars({
 /* ---------------------------------------------------------------- Progress */
 
 /** Thin pill progress bar that fills with a spring. */
-export function Meter({ progress, color, track, height = 8 }: { progress: number; color: string; track?: string; height?: number }) {
-  const { dark } = useTheme();
+export function Meter({ progress, color, track, height = 8 }: { progress: number; color?: string; track?: string; height?: number }) {
+  const card = useCardColors();
   const v = useSharedValue(0);
   useEffect(() => {
     v.value = withSpring(Math.max(0, Math.min(1, progress)), { damping: 18, stiffness: 120 });
   }, [progress, v]);
   const style = useAnimatedStyle(() => ({ width: `${v.value * 100}%` }));
   return (
-    <View style={{ height, borderRadius: height, backgroundColor: track ?? (dark ? 'rgba(255,255,255,0.08)' : 'rgba(20,20,19,0.08)'), overflow: 'hidden' }}>
-      <Animated.View style={[{ height, borderRadius: height, backgroundColor: color }, style]} />
+    <View style={{ height, borderRadius: height, backgroundColor: track ?? card.track, overflow: 'hidden' }}>
+      <Animated.View style={[{ height, borderRadius: height, backgroundColor: color ?? card.hi }, style]} />
     </View>
   );
 }
@@ -216,11 +221,12 @@ export function LineChart({
 }: {
   values: number[];
   height?: number;
-  color: string;
+  color?: string;
   band?: { low?: number; high?: number };
   dotColor?: string;
 }) {
-  const { dark } = useTheme();
+  const card = useCardColors();
+  const line = color ?? card.fg;
   const [width, setWidth] = useState(0);
   const pad = 8;
   const lo = Math.min(...values, band?.low ?? Infinity);
@@ -241,16 +247,108 @@ export function LineChart({
               width={width}
               y={y(Math.min(hi, band.high ?? hi))}
               height={Math.max(0, y(Math.max(lo, band.low ?? lo)) - y(Math.min(hi, band.high ?? hi)))}
-              fill={dark ? 'rgba(207,226,182,0.12)' : 'rgba(207,226,182,0.55)'}
+              fill="rgba(76,192,56,0.16)"
               rx={10}
             />
           ) : null}
-          <Polyline points={points} fill="none" stroke={color} strokeWidth={3} strokeLinejoin="round" strokeLinecap="round" />
+          <Polyline points={points} fill="none" stroke={line} strokeWidth={3} strokeLinejoin="round" strokeLinecap="round" />
           {values.map((v, i) => (
-            <Circle key={i} cx={x(i)} cy={y(v)} r={i === last ? 6 : 3} fill={i === last ? (dotColor ?? color) : color} />
+            <Circle key={i} cx={x(i)} cy={y(v)} r={i === last ? 6 : 3} fill={i === last ? (dotColor ?? card.hi) : line} />
           ))}
         </Svg>
       ) : null}
+    </View>
+  );
+}
+
+/* -------------------------------------------------------------------- Pie */
+
+/** Filled pie wedge (e.g. steps progress in the Today header). Sweeps in. */
+export function Pie({ progress, size = 72, color, track }: { progress: number; size?: number; color?: string; track?: string }) {
+  const card = useCardColors();
+  const p = useSharedValue(0);
+  const r = size / 2;
+  useEffect(() => {
+    p.value = withTiming(Math.max(0, Math.min(0.9999, progress)), { duration: 900, easing: Easing.out(Easing.cubic) });
+  }, [progress, p]);
+  // Stroke-dash trick: a circle of radius r/2 with stroke width r draws a pie.
+  const circ = Math.PI * r;
+  const props = useAnimatedProps(() => ({ strokeDasharray: `${circ * p.value} ${circ}` }));
+  return (
+    <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>
+      <Circle cx={r} cy={r} r={r} fill={track ?? card.track} />
+      <ACircle cx={r} cy={r} r={r / 2} fill="none" stroke={color ?? card.hi} strokeWidth={r} animatedProps={props} />
+    </Svg>
+  );
+}
+
+/* ------------------------------------------------------------- StripedBar */
+
+/** Thick progress bar with diagonal stripes and an end cap (activity widget). */
+export function StripedBar({ progress, height = 44, color, track }: { progress: number; height?: number; color?: string; track?: string }) {
+  const card = useCardColors();
+  const fill = color ?? card.hi;
+  const v = useSharedValue(0);
+  useEffect(() => {
+    v.value = withTiming(Math.max(0, Math.min(1, progress)), { duration: 1000, easing: Easing.out(Easing.cubic) });
+  }, [progress, v]);
+  const style = useAnimatedStyle(() => ({ width: `${v.value * 100}%` }));
+  const stripes = Array.from({ length: 40 }, (_, i) => i);
+  return (
+    <View style={{ height, borderRadius: 12, backgroundColor: track ?? card.track, overflow: 'hidden' }}>
+      <Animated.View style={[{ height, borderRadius: 12, backgroundColor: fill, overflow: 'hidden', flexDirection: 'row' }, style]}>
+        <View style={{ position: 'absolute', top: -height, left: 0, flexDirection: 'row', gap: 10, transform: [{ rotate: '25deg' }] }}>
+          {stripes.map((i) => (
+            <View key={i} style={{ width: 4, height: height * 3, backgroundColor: 'rgba(0,0,0,0.14)' }} />
+          ))}
+        </View>
+        <View style={{ position: 'absolute', right: 0, top: -4, bottom: -4, width: 5, borderRadius: 3, backgroundColor: fill, borderLeftWidth: 2, borderLeftColor: 'rgba(0,0,0,0.25)' }} />
+      </Animated.View>
+    </View>
+  );
+}
+
+/* ------------------------------------------------------------- HeartWave */
+
+/** Smooth sine "heartbeat" line that draws itself in. */
+export function HeartWave({ width = 140, height = 44, color }: { width?: number; height?: number; color?: string }) {
+  const card = useCardColors();
+  const d = Array.from({ length: 61 }, (_, i) => {
+    const x = (i / 60) * width;
+    const y = height / 2 + Math.sin((i / 60) * Math.PI * 4) * (height * 0.32) * (0.6 + 0.4 * Math.sin((i / 60) * Math.PI));
+    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const len = width * 2.2;
+  const p = useSharedValue(len);
+  useEffect(() => {
+    p.value = withTiming(0, { duration: 1400, easing: Easing.out(Easing.cubic) });
+  }, [p]);
+  const props = useAnimatedProps(() => ({ strokeDashoffset: p.value }));
+  return (
+    <Svg width={width} height={height}>
+      <APath d={d} fill="none" stroke={color ?? card.hi} strokeWidth={2.5} strokeLinecap="round" strokeDasharray={`${len} ${len}`} animatedProps={props} />
+    </Svg>
+  );
+}
+
+/* ------------------------------------------------------------- GlowBar */
+
+/** Slim progress bar with a soft glow (streak widget). */
+export function GlowBar({ progress, color, height = 10 }: { progress: number; color: string; height?: number }) {
+  const card = useCardColors();
+  const v = useSharedValue(0);
+  useEffect(() => {
+    v.value = withTiming(Math.max(0, Math.min(1, progress)), { duration: 1000, easing: Easing.out(Easing.cubic) });
+  }, [progress, v]);
+  const style = useAnimatedStyle(() => ({ width: `${v.value * 100}%` }));
+  return (
+    <View style={{ height, borderRadius: height, backgroundColor: card.track }}>
+      <Animated.View
+        style={[
+          { height, borderRadius: height, backgroundColor: color, shadowColor: color, shadowOpacity: 0.9, shadowRadius: 8, shadowOffset: { width: 0, height: 0 }, elevation: 6 },
+          style,
+        ]}
+      />
     </View>
   );
 }

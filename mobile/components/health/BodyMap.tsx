@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import Svg, { Ellipse, Rect } from 'react-native-svg';
 import { getRegion, type RegionId, type RegionStatus } from '@/constants/body-map';
-import { accent, pastel, useTheme } from '@/constants/theme';
+import { brand, useTheme } from '@/constants/theme';
 
 const VIEW_W = 220;
 const VIEW_H = 470;
@@ -33,10 +33,10 @@ const REGION_SHAPES: { id: RegionId; shapes: Shape[] }[] = [
 
 /** Pastel per status: in range = sage, low = butter, high = tangerine. */
 export function statusColor(status: RegionStatus, dark: boolean): string {
-  if (status === 'ok') return pastel.sage;
-  if (status === 'low') return pastel.butter;
-  if (status === 'high') return accent.tangerine;
-  return dark ? '#2E2C28' : '#E2DACB';
+  if (status === 'ok') return brand.green;
+  if (status === 'low') return '#E8A200';
+  if (status === 'high') return brand.orange;
+  return dark ? '#262626' : '#D2D2D5';
 }
 
 /**

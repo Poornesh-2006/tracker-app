@@ -12,11 +12,12 @@ import {
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { accent, fonts, ON_PASTEL, radii, space, useTheme } from '@/constants/theme';
+import { accent, fonts, radii, space, useTheme } from '@/constants/theme';
 import { addDays, formatDate, isValidDateStr, parseDateStr, toDateStr } from '@/utils/dates';
 import type { IconName } from './Card';
 import { Tap } from './Tap';
 import { Text } from './Text';
+import { useCardColors } from './CardColors';
 
 /* ----------------------------------------------------------------- Button */
 
@@ -43,8 +44,9 @@ export function Button({
   small?: boolean;
 }) {
   const { c } = useTheme();
+  const card = useCardColors();
   const bg = { ink: c.ink, accent: accent.tangerine, pink: accent.pink, ghost: 'transparent', inverse: 'transparent', danger: c.danger }[kind];
-  const fg = { ink: c.onInk, ghost: c.ink, inverse: c.onInk, pink: ON_PASTEL, accent: '#FFFFFF', danger: '#FFFFFF' }[kind];
+  const fg = { ink: c.onInk, ghost: c.ink, inverse: card.fg, pink: '#FFFFFF', accent: '#FFFFFF', danger: '#FFFFFF' }[kind];
   return (
     <Tap
       onPress={onPress}
@@ -55,7 +57,7 @@ export function Button({
         small && styles.buttonSmall,
         { backgroundColor: bg },
         kind === 'ghost' && { borderWidth: 1.5, borderColor: c.line },
-        kind === 'inverse' && { borderWidth: 1.5, borderColor: c.onInk },
+        kind === 'inverse' && { borderWidth: 1.5, borderColor: card.muted },
         style,
       ]}>
       {loading ? (
@@ -409,7 +411,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.sm,
   },
-  input: { flex: 1, fontFamily: fonts.bodyMedium, fontSize: 16, paddingVertical: 12 },
+  // Web: our border shows focus; hide the browser's own outline (it drew a second box).
+  input: { flex: 1, fontFamily: fonts.bodyMedium, fontSize: 16, paddingVertical: 12, ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null) },
   scaleDot: { flex: 1, height: 44, borderRadius: radii.md, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', gap: space.sm, paddingVertical: space.xxl, paddingHorizontal: space.xl },
   emptyIcon: { width: 56, height: 56, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: space.xs },

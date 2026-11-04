@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming, Easing } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { pastel, space, useTheme } from '@/constants/theme';
+import { brand, space, useTheme } from '@/constants/theme';
 import { DotMatrix, Text } from '@/components/ui';
 
 /** Slowly drifting pastel blob for the auth backdrop. */
@@ -39,9 +39,9 @@ export function AuthShell({ title, subtitle, children, clock = true }: { title: 
 
   return (
     <View style={[styles.flex, { backgroundColor: c.canvas }]}>
-      <Blob color={pastel.butter} size={220} top={-60} left={-70} delay={0} />
-      <Blob color={pastel.blush} size={160} top={120} left={240} delay={700} />
-      <Blob color={pastel.lavender} size={120} top={300} left={-30} delay={1400} />
+      <Blob color={brand.orange} size={220} top={-60} left={-70} delay={0} />
+      <Blob color={brand.orangeDeep} size={160} top={120} left={240} delay={700} />
+      <Blob color={brand.gray} size={120} top={300} left={-30} delay={1400} />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           contentContainerStyle={[styles.content, { paddingTop: insets.top + space.xxl, paddingBottom: insets.bottom + space.xl }]}

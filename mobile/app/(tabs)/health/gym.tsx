@@ -3,13 +3,14 @@ import { StyleSheet, View } from 'react-native';
 import { Bars, Card, CardHead, CountUp, Empty, IconButton, ListItem, Ring, Row, Screen, Section, Text, Button } from '@/components/ui';
 import { MetricsSheet, WorkoutSheet } from '@/components/forms/EntrySheets';
 import { GOALS } from '@/constants/goals';
-import { ON_PASTEL, ON_PASTEL_MUTED, space, useTheme, PASTEL_TRACK, PASTEL_DIM } from '@/constants/theme';
+import { space, useTheme } from '@/constants/theme';
 import { useFocusData } from '@/hooks/useFocusData';
 import { calculateRecoveryScore } from '@/services/ai-engine';
 import { listDailyMetricsBetween } from '@/services/metrics-service';
 import { listWorkouts } from '@/services/workout-service';
 import type { WorkoutEntry } from '@/types';
 import { formatDate, lastNDays, todayStr, weekdayNarrow } from '@/utils/dates';
+import { plural } from '@/utils/helpers';
 
 async function loadGym() {
   const today = todayStr();
@@ -54,19 +55,19 @@ export default function GymScreen() {
         <CardHead label="This week" icon="dumbbell" tone="sage" />
         <View style={styles.hero}>
           <View style={styles.flex}>
-            <CountUp value={data?.weekMin ?? 0} variant="display" color={ON_PASTEL} suffix=" min" />
-            <Text variant="small" color={ON_PASTEL_MUTED}>
-              {data?.sessions ?? 0} sessions · {data?.weekKcal ?? 0} kcal burned
+            <CountUp value={data?.weekMin ?? 0} variant="display" suffix=" min" />
+            <Text variant="small" muted>
+              {plural(data?.sessions ?? 0, 'session')} · {data?.weekKcal ?? 0} kcal burned
             </Text>
           </View>
-          <Ring progress={(data?.weekMin ?? 0) / GOALS.workoutMinPerWeek} color={ON_PASTEL} track={PASTEL_TRACK} size={80}>
-            <Text variant="label" color={ON_PASTEL} style={{ fontSize: 10 }}>
+          <Ring progress={(data?.weekMin ?? 0) / GOALS.workoutMinPerWeek} size={80}>
+            <Text variant="label" style={{ fontSize: 10 }}>
               {Math.round(((data?.weekMin ?? 0) / GOALS.workoutMinPerWeek) * 100)}%
             </Text>
           </Ring>
         </View>
         <View style={{ marginTop: space.md }}>
-          <Bars values={data?.perDay ?? Array(7).fill(0)} labels={data?.labels} labelColor={ON_PASTEL_MUTED} color={ON_PASTEL} dim={PASTEL_DIM} highlight={6} barWidth={14} height={70} />
+          <Bars values={data?.perDay ?? Array(7).fill(0)} labels={data?.labels} highlight={6} barWidth={14} height={70} />
         </View>
       </Card>
 
@@ -80,14 +81,14 @@ export default function GymScreen() {
         </Card>
         <Card index={2} tone="lavender" style={styles.flex} onPress={() => setCheckIn(true)} accessibilityLabel="Sleep, tap to update">
           <CardHead label="Sleep" icon="weather-night" tone="lavender" />
-          <Text variant="num" color={ON_PASTEL}>
+          <Text variant="num">
             {data?.sleep ?? '–'}
-            <Text variant="small" color={ON_PASTEL_MUTED}>
+            <Text variant="small" muted>
               {' '}
               h
             </Text>
           </Text>
-          <Text variant="small" color={ON_PASTEL_MUTED}>
+          <Text variant="small" muted>
             goal {GOALS.sleepHours} h
           </Text>
         </Card>

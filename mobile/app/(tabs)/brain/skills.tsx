@@ -2,10 +2,11 @@ import { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { Card, CardHead, CountUp, Empty, IconButton, ListItem, Meter, Screen, Segmented, Text } from '@/components/ui';
 import { SchemaSheet, askDelete, num, text, type FormLayout } from '@/components/forms/SchemaSheet';
-import { ON_PASTEL, ON_PASTEL_MUTED, space, useTheme } from '@/constants/theme';
+import { space, useTheme } from '@/constants/theme';
 import { useFocusData } from '@/hooks/useFocusData';
 import { addMark, addSkill, deleteMark, deleteSkill, listMarks, listSkills } from '@/services/education-service';
 import { formatDate } from '@/utils/dates';
+import { plural } from '@/utils/helpers';
 
 type Tab = 'skills' | 'marks';
 const TABS = [
@@ -71,9 +72,9 @@ export default function SkillsScreen() {
         <View style={{ gap: space.sm }}>
           {avg != null ? (
             <Card index={0} tone="sky">
-              <CardHead label={`Average · ${marks.length} exams`} icon="school-outline" tone="sky" />
-              <CountUp value={avg} variant="display" color={ON_PASTEL} suffix="%" />
-              <Text variant="small" color={ON_PASTEL_MUTED}>
+              <CardHead label={`Average · ${plural(marks.length, 'exam')}`} icon="school-outline" tone="sky" />
+              <CountUp value={avg} variant="display" suffix="%" />
+              <Text variant="small" muted>
                 across all subjects
               </Text>
             </Card>

@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Card, CardHead, DotMatrix, Empty, IconButton, ListItem, Meter, Row, Screen, Segmented, Text } from '@/components/ui';
 import { SchemaSheet, askDelete, num, text, type FormLayout } from '@/components/forms/SchemaSheet';
-import { ON_PASTEL, ON_PASTEL_MUTED, space, useTheme } from '@/constants/theme';
+import { space, useTheme } from '@/constants/theme';
 import { useFocusData } from '@/hooks/useFocusData';
 import { addSubscription, addTransaction, deleteSubscription, deleteTransaction, listSubscriptions, listTransactions, summarizeFinance } from '@/services/finance-service';
 import type { FinanceSubscription } from '@/types';
@@ -58,21 +58,21 @@ export default function FinanceScreen() {
           <Segmented options={PERIODS} value={period} onChange={setPeriod} />
           <Card index={0} tone={sum.net >= 0 ? 'sage' : 'peach'}>
             <CardHead label="Net" icon="scale-balance" tone={sum.net >= 0 ? 'sage' : 'peach'} />
-            <DotMatrix text={money(sum.net).replace('₹', '')} dot={6} color={ON_PASTEL} offColor="transparent" accessibilityLabel={`Net ${money(sum.net)}`} />
+            <DotMatrix text={money(sum.net).replace('₹', '')} dot={6} offColor="transparent" accessibilityLabel={`Net ${money(sum.net)}`} />
             <Row style={{ marginTop: space.md }}>
               <View style={styles.flex}>
-                <Text variant="small" color={ON_PASTEL_MUTED}>
+                <Text variant="small" muted>
                   In
                 </Text>
-                <Text variant="title" color={ON_PASTEL}>
+                <Text variant="title">
                   {money(sum.income)}
                 </Text>
               </View>
               <View style={styles.flex}>
-                <Text variant="small" color={ON_PASTEL_MUTED}>
+                <Text variant="small" muted>
                   Out
                 </Text>
-                <Text variant="title" color={ON_PASTEL}>
+                <Text variant="title">
                   {money(sum.expense)}
                 </Text>
               </View>
@@ -116,10 +116,10 @@ export default function FinanceScreen() {
         <>
           <Card index={0} tone="lavender">
             <CardHead label={`${subs.filter((s) => s.active).length} active`} icon="repeat" tone="lavender" />
-            <Text variant="display" color={ON_PASTEL}>
+            <Text variant="display">
               {money(monthlySubs)}
             </Text>
-            <Text variant="small" color={ON_PASTEL_MUTED}>
+            <Text variant="small" muted>
               per month · {money(monthlySubs * 12)} a year
             </Text>
           </Card>

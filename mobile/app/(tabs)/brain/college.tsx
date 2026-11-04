@@ -1,12 +1,13 @@
 import { useCallback, useState } from 'react';
 import { View } from 'react-native';
-import { Card, CardHead, Empty, IconButton, ListItem, Meter, Screen, Segmented, Text } from '@/components/ui';
+import { Card, CardHead, Chips, Empty, IconButton, ListItem, Meter, Screen, Text } from '@/components/ui';
 import { SchemaSheet, askDelete, num, text, type FormLayout } from '@/components/forms/SchemaSheet';
-import { ON_PASTEL, ON_PASTEL_MUTED, space, PASTEL_TRACK } from '@/constants/theme';
+import { space } from '@/constants/theme';
 import { useFocusData } from '@/hooks/useFocusData';
 import { addCollegeActivity, deleteCollegeActivity, listCollegeActivities } from '@/services/education-service';
 import type { CollegeActivity } from '@/types';
 import { formatDate } from '@/utils/dates';
+import { plural } from '@/utils/helpers';
 
 type Kind = CollegeActivity['kind'];
 const KINDS = [
@@ -40,17 +41,17 @@ export default function CollegeScreen() {
 
   return (
     <Screen back eyebrow="Brain" title="College" right={<IconButton icon="plus" tone="ink" label="Add" onPress={() => setAdding(true)} />}>
-      <Segmented options={KINDS} value={kind} onChange={setKind} />
+      <Chips options={KINDS} value={kind} onChange={setKind} />
       {kind === 'attendance' && items.length ? (
         <Card index={0} tone="blush">
-          <CardHead label={`Attendance · ${items.length} classes`} icon="account-check-outline" tone="blush" />
-          <Text variant="display" color={ON_PASTEL}>
+          <CardHead label={`Attendance · ${plural(items.length, 'class', 'classes')}`} icon="account-check-outline" tone="blush" />
+          <Text variant="display">
             {Math.round((attended / items.length) * 100)}%
           </Text>
           <View style={{ marginTop: space.sm }}>
-            <Meter progress={attended / items.length} color={ON_PASTEL} track={PASTEL_TRACK} />
+            <Meter progress={attended / items.length} />
           </View>
-          <Text variant="small" color={ON_PASTEL_MUTED} style={{ marginTop: 4 }}>
+          <Text variant="small" muted style={{ marginTop: 4 }}>
             {attended < items.length * 0.75 ? 'Below 75% — watch it.' : 'On track.'}
           </Text>
         </Card>

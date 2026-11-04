@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import Animated, { ZoomIn } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '@/constants/theme';
+import { useCardColors } from './CardColors';
 
 /** 7-row dot glyphs ('#' = lit). Width varies per glyph. */
 const GLYPHS: Record<string, string[]> = {
@@ -103,7 +104,8 @@ const Glyph = memo(function Glyph({ rows, dot, color, off }: { rows: string[]; d
 export function DotMatrix({ text, dot: maxDot = 6, color, offColor, animate = true, accessibilityLabel, align = 'flex-start' }: Props) {
   const { c, dark } = useTheme();
   const [avail, setAvail] = useState(0);
-  const on = color ?? c.ink;
+  const card = useCardColors();
+  const on = color ?? card.fg ?? c.ink;
   const off = offColor ?? (dark ? 'rgba(243,238,227,0.07)' : 'rgba(20,20,19,0.06)');
   const chars = text.toUpperCase().split('');
   // Auto-fit: never wider than the parent gives us.

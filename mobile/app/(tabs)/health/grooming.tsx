@@ -5,7 +5,7 @@ import { Image } from 'expo-image';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Chips, Empty, IconButton, ListItem, Screen, Segmented, Tap, Text, enter } from '@/components/ui';
 import { RoutineSheet, WARDROBE_CATEGORIES, WardrobeSheet, confirmDeleteRoutine } from '@/components/forms/GroomingSheets';
-import { ON_PASTEL, ON_PASTEL_MUTED, pastel, radii, space } from '@/constants/theme';
+import { brand, radii, space, useTheme } from '@/constants/theme';
 import { useFocusData } from '@/hooks/useFocusData';
 import { attempt } from '@/components/forms/actions';
 import { listRoutines } from '@/services/grooming-service';
@@ -19,11 +19,11 @@ const TABS = [
   { value: 'schedule' as Tab, label: 'Schedule' },
 ];
 const ALL = 'all' as const;
-const TONES = ['blush', 'butter', 'sky', 'sage', 'lavender', 'peach'] as const;
 
 const load = () => Promise.all([listWardrobe(), listRoutines()]).then(([wardrobe, routines]) => ({ wardrobe, routines }));
 
 export default function GroomingScreen() {
+  const { c } = useTheme();
   const { data } = useFocusData(useCallback(load, []));
   const [tab, setTab] = useState<Tab>('wardrobe');
   const [category, setCategory] = useState<WardrobeCategory | typeof ALL>(ALL);
@@ -47,24 +47,24 @@ export default function GroomingScreen() {
           <Animated.View layout={LinearTransition} style={styles.grid}>
             {items.map((w, i) => (
               <Animated.View key={w.id} entering={enter(i)} layout={LinearTransition} style={styles.cell}>
-                <Tap onPress={() => setItem({ open: true, entry: w })} style={[styles.tile, { backgroundColor: pastel[TONES[w.id % TONES.length]] }]} accessibilityLabel={w.name}>
+                <Tap onPress={() => setItem({ open: true, entry: w })} style={[styles.tile, { backgroundColor: c.surface }]} accessibilityLabel={w.name}>
                   {w.photoUri ? (
                     <Image source={{ uri: w.photoUri }} style={styles.photo} contentFit="cover" transition={200} />
                   ) : (
                     <View style={[styles.photo, styles.placeholder]}>
-                      <MaterialCommunityIcons name="hanger" size={34} color={ON_PASTEL} />
+                      <MaterialCommunityIcons name="hanger" size={34} color={c.muted} />
                     </View>
                   )}
                   <View style={styles.tileText}>
-                    <Text variant="title" color={ON_PASTEL} numberOfLines={1}>
+                    <Text variant="title" numberOfLines={1}>
                       {w.name}
                     </Text>
-                    <Text variant="small" color={ON_PASTEL_MUTED} numberOfLines={1}>
+                    <Text variant="small" muted numberOfLines={1}>
                       {[w.color, w.brand].filter(Boolean).join(' · ') || w.category}
                     </Text>
                   </View>
                   <Tap onPress={() => void toggleFavorite(w)} style={styles.heart} scaleTo={0.8} accessibilityLabel={w.favorite ? 'Unfavorite' : 'Favorite'} accessibilityState={{ selected: w.favorite }}>
-                    <MaterialCommunityIcons name={w.favorite ? 'heart' : 'heart-outline'} size={20} color={ON_PASTEL} />
+                    <MaterialCommunityIcons name={w.favorite ? 'heart' : 'heart-outline'} size={20} color={w.favorite ? brand.orange : '#111111'} />
                   </Tap>
                 </Tap>
               </Animated.View>
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   cell: { width: '47.8%' },
   tile: { borderRadius: radii.lg, overflow: 'hidden' },
   photo: { width: '100%', aspectRatio: 0.9 },
-  placeholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.35)' },
+  placeholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(128,128,128,0.12)' },
   tileText: { padding: space.md, gap: 2 },
   heart: { position: 'absolute', top: 10, right: 10, width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.75)', alignItems: 'center', justifyContent: 'center' },
 });

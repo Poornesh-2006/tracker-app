@@ -7,7 +7,7 @@ import { BodyMap, statusColor } from '@/components/health/BodyMap';
 import { AiSheet } from '@/components/ai/AiSheet';
 import { BODY_REGIONS, REGION_STATUS_LABELS, getRegion, statusForTest, summarizeRegions, type RegionId, type RegionStatus } from '@/constants/body-map';
 import { getTestTypeDef } from '@/constants/metrics';
-import { ON_PASTEL, accent, space, useTheme } from '@/constants/theme';
+import { accent, space, useTheme } from '@/constants/theme';
 import { useFocusData } from '@/hooks/useFocusData';
 import { listBloodTests } from '@/services/blood-test-service';
 import { explainBloodTest } from '@/services/gemma-api';
@@ -106,17 +106,17 @@ export default function BodyScreen() {
           <Card index={1} tone="sage">
             <CardHead label={`${activeType} · ${series.length} reading${series.length === 1 ? '' : 's'}`} tone="sage" />
             {latest ? (
-              <Text variant="display" color={ON_PASTEL}>
+              <Text variant="display">
                 {latest.value}
-                <Text variant="title" color={ON_PASTEL}>
+                <Text variant="title">
                   {' '}
                   {latest.unit}
                 </Text>
               </Text>
             ) : null}
-            <LineChart values={series.map((t) => t.value)} color={ON_PASTEL} dotColor={accent.tangerine} band={{ low: def?.low, high: def?.high }} />
+            <LineChart values={series.map((t) => t.value)} dotColor={accent.tangerine} band={{ low: def?.low, high: def?.high }} />
             {def && (def.low != null || def.high != null) ? (
-              <Text variant="small" color={ON_PASTEL}>
+              <Text variant="small">
                 Shaded band = normal range ({def.low ?? '—'}–{def.high ?? '—'} {def.unit})
               </Text>
             ) : null}
@@ -167,7 +167,7 @@ function StatusPill({ status }: { status: RegionStatus }) {
   const { dark } = useTheme();
   return (
     <View style={[styles.pill, { backgroundColor: statusColor(status, dark) }]}>
-      <Text variant="label" color={status === 'high' ? '#fff' : ON_PASTEL}>
+      <Text variant="label" color={status === 'high' ? '#FFFFFF' : '#111111'}>
         {REGION_STATUS_LABELS[status]}
       </Text>
     </View>

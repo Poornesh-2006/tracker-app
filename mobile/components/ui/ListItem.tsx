@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { pastel, radii, space, useTheme, ON_PASTEL } from '@/constants/theme';
+import { brand, pastel, radii, space, useTheme } from '@/constants/theme';
 import { enter, type IconName } from './Card';
 import { IconTile } from './Controls';
 import { Tap } from './Tap';
@@ -23,12 +23,20 @@ interface Props {
   done?: boolean;
 }
 
+/** Icon color by semantic tone: sage = good, peach/butter = attention, blush = alert. */
+function iconColor(t: keyof typeof pastel, ink: string): string {
+  if (t === 'sage') return brand.green;
+  if (t === 'peach' || t === 'butter') return brand.orange;
+  if (t === 'blush') return brand.orangeDeep;
+  return ink;
+}
+
 /** Card-style row: pastel icon tile, title/subtitle, value or custom right side. */
 export function ListItem({ title, subtitle, icon, iconTone = 'butter', right, value, onPress, onLongPress, index, chevron, done }: Props) {
   const { c } = useTheme();
   const content = (
     <>
-      {icon ? <IconTile icon={icon} bg={pastel[iconTone]} fg={ON_PASTEL} /> : null}
+      {icon ? <IconTile icon={icon} bg={c.surfaceAlt} fg={iconColor(iconTone, c.ink)} /> : null}
       <View style={styles.flex}>
         <Text variant="title" numberOfLines={2} style={done && { textDecorationLine: 'line-through', opacity: 0.5 }}>
           {title}

@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { radii, space, useTheme, type Tone } from '@/constants/theme';
 import { Tap } from './Tap';
 import { Text } from './Text';
+import { CardColorsContext, useCardColors } from './CardColors';
 
 export type IconName = keyof typeof MaterialCommunityIcons.glyphMap;
 
@@ -30,15 +31,15 @@ interface CardProps {
 /** Rounded bento card. Pressable cards spring on touch. */
 export function Card({ tone = 'surface', children, onPress, onLongPress, style, index, padded = true, accessibilityLabel }: CardProps) {
   const t = useTheme().tone(tone);
-  const body = [styles.card, { backgroundColor: t.bg }, padded && styles.padded, style];
+  const body = [styles.card, { backgroundColor: t.bg }, t.border ? { borderWidth: 1, borderColor: t.border } : null, padded && styles.padded, style];
   const inner =
     onPress || onLongPress ? (
       <Tap onPress={onPress} onLongPress={onLongPress} style={body} scaleTo={0.97} accessibilityLabel={accessibilityLabel}>
-        {children}
+        <CardColorsContext.Provider value={t}>{children}</CardColorsContext.Provider>
       </Tap>
     ) : (
       <View style={body} accessibilityLabel={accessibilityLabel}>
-        {children}
+        <CardColorsContext.Provider value={t}>{children}</CardColorsContext.Provider>
       </View>
     );
   if (index == null) return inner;
@@ -54,14 +55,17 @@ export function Card({ tone = 'surface', children, onPress, onLongPress, style, 
 }
 
 /** Small caption + icon row used at the top of bento cards ("EXERCISE  🏃"). */
-export function CardHead({ label, icon, tone = 'surface', right }: { label: string; icon?: IconName; tone?: Tone; right?: ReactNode }) {
-  const t = useTheme().tone(tone);
+/** `tone` is optional: by default it follows the enclosing card. */
+export function CardHead({ label, icon, tone, right }: { label: string; icon?: IconName; tone?: Tone; right?: ReactNode }) {
+  const theme = useTheme();
+  const ctx = useCardColors();
+  const t = tone ? theme.tone(tone) : ctx;
   return (
     <View style={styles.head}>
       <Text variant="label" color={t.muted} style={styles.flex} numberOfLines={1}>
         {label}
       </Text>
-      {right ?? (icon ? <MaterialCommunityIcons name={icon} size={18} color={t.fg} /> : null)}
+      {right ?? (icon ? <MaterialCommunityIcons name={icon} size={18} color={t.hi === '#FFFFFF' ? t.fg : t.hi} /> : null)}
     </View>
   );
 }

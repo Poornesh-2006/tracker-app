@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { router, type Href } from 'expo-router';
 import { Card, CardHead, CountUp, Row, Screen, Text, type IconName } from '@/components/ui';
-import { ON_PASTEL, ON_PASTEL_MUTED, useTheme, type Tone } from '@/constants/theme';
+import { useTheme, type Tone } from '@/constants/theme';
 import { useFocusData } from '@/hooks/useFocusData';
 import { listMarks, listSkills } from '@/services/education-service';
 import { listInvestments, listTransactions, summarizeFinance, summarizePortfolio } from '@/services/finance-service';
@@ -42,7 +42,6 @@ function Tile({ tone, label, icon, value, caption, path, index }: { tone: Tone; 
 }
 
 export default function BrainHub() {
-  const { c } = useTheme();
   const { data } = useFocusData(useCallback(loadBrain, []));
 
   return (
@@ -50,13 +49,13 @@ export default function BrainHub() {
       <Card index={0} tone="lavender" onPress={go('/(tabs)/brain/graph')} accessibilityLabel="Knowledge graph">
         <CardHead label="Knowledge graph" icon="graph-outline" tone="lavender" />
         <View style={styles.split}>
-          <Text variant="display" color={ON_PASTEL}>
+          <Text variant="display">
             {data?.learned ?? 0}
-            <Text variant="h2" color={ON_PASTEL_MUTED}>
+            <Text variant="h2" muted>
               /{data?.nodes ?? 0}
             </Text>
           </Text>
-          <Text variant="small" color={ON_PASTEL_MUTED}>
+          <Text variant="small" muted>
             topics learned
           </Text>
         </View>
@@ -73,10 +72,10 @@ export default function BrainHub() {
         <Tile index={5} tone="blush" label="College" icon="office-building-outline" value="Log" caption="attendance & events" path="/(tabs)/brain/college" />
         <Card index={6} tone="ink" style={styles.flex} onPress={go('/(tabs)/brain/insights')} accessibilityLabel="AI insights">
           <CardHead label="Insights" icon="creation" tone="ink" />
-          <Text variant="num" color={c.onInk}>
+          <Text variant="num">
             AI
           </Text>
-          <Text variant="small" color={c.onInk} style={{ opacity: 0.6 }}>
+          <Text variant="small" muted>
             trends & local advice
           </Text>
         </Card>

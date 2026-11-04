@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { accent, ON_PASTEL, radii, useTheme } from '@/constants/theme';
+import { accent, brand, radii, useTheme } from '@/constants/theme';
 import { Tap, haptic, type IconName } from '@/components/ui';
 
 /** Visible tabs, in order. The + button sits in the middle. Other routes (me) are hidden. */
@@ -22,7 +22,8 @@ const SLOT = 56;
  * in the middle that rotates into an × while the quick-add sheet is open.
  */
 export function TabBar({ state, navigation, onPlus, plusOpen }: BottomTabBarProps & { onPlus: () => void; plusOpen: boolean }) {
-  const { c } = useTheme();
+  const { tone } = useTheme();
+  const bar = tone('ink');
   const insets = useSafeAreaInsets();
   const [width, setWidth] = useState(0);
 
@@ -35,8 +36,9 @@ export function TabBar({ state, navigation, onPlus, plusOpen }: BottomTabBarProp
   const x = useSharedValue(0);
   const visible = useSharedValue(0);
   useEffect(() => {
-    if (slot >= 0) x.value = withSpring(gap + slot * (SLOT + gap), { damping: 17, stiffness: 190 });
-    visible.value = withSpring(slot >= 0 ? 1 : 0);
+    // Timing, not spring: the circle travels from the old icon and stops exactly on the new one (no overshoot).
+    if (slot >= 0) x.value = withTiming(gap + slot * (SLOT + gap), { duration: 260, easing: Easing.out(Easing.cubic) });
+    visible.value = withTiming(slot >= 0 ? 1 : 0, { duration: 180 });
   }, [slot, gap, x, visible]);
   const pill = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }, { scale: visible.value }], opacity: visible.value }));
 
@@ -69,15 +71,15 @@ export function TabBar({ state, navigation, onPlus, plusOpen }: BottomTabBarProp
         accessibilityRole="tab"
         accessibilityLabel={t.label}
         accessibilityState={{ selected: active }}>
-        <MaterialCommunityIcons name={active ? t.iconActive : t.icon} size={24} color={active ? c.ink : c.onInk} />
+        <MaterialCommunityIcons name={active ? t.iconActive : t.icon} size={24} color={active ? brand.orange : brand.lightGray} />
       </Tap>
     );
   };
 
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { bottom: Math.max(insets.bottom, 12) + 4 }]}>
-      <View style={[styles.bar, { backgroundColor: c.ink }]} onLayout={(e) => setWidth(e.nativeEvent.layout.width)} accessibilityRole="tablist">
-        {width > 0 ? <Animated.View style={[styles.pill, { backgroundColor: c.canvas }, pill]} /> : null}
+      <View style={[styles.bar, { backgroundColor: bar.bg, borderColor: bar.border ?? 'transparent' }]} onLayout={(e) => setWidth(e.nativeEvent.layout.width)} accessibilityRole="tablist">
+        {width > 0 ? <Animated.View style={[styles.pill, { backgroundColor: '#333333' }, pill]} /> : null}
         <View style={[styles.row, { paddingHorizontal: gap, gap }]}>
           {item(TABS[0])}
           {item(TABS[1])}
@@ -91,7 +93,7 @@ export function TabBar({ state, navigation, onPlus, plusOpen }: BottomTabBarProp
             style={[styles.plus, { backgroundColor: accent.pink }]}
             accessibilityLabel={plusOpen ? 'Close quick add' : 'Quick add'}>
             <Animated.View style={plusStyle}>
-              <MaterialCommunityIcons name="plus" size={30} color={ON_PASTEL} />
+              <MaterialCommunityIcons name="plus" size={30} color="#FFFFFF" />
             </Animated.View>
           </Tap>
           {item(TABS[2])}
@@ -104,7 +106,7 @@ export function TabBar({ state, navigation, onPlus, plusOpen }: BottomTabBarProp
 
 const styles = StyleSheet.create({
   wrap: { position: 'absolute', left: 16, right: 16, alignItems: 'center' },
-  bar: { width: '100%', maxWidth: 440, height: 68, borderRadius: radii.pill, justifyContent: 'center' },
+  bar: { width: '100%', maxWidth: 440, height: 68, borderRadius: radii.pill, justifyContent: 'center', borderWidth: 1 },
   row: { flexDirection: 'row', alignItems: 'center' },
   slot: { width: SLOT, height: SLOT, borderRadius: SLOT / 2, alignItems: 'center', justifyContent: 'center' },
   pill: { position: 'absolute', left: 0, top: 6, width: SLOT, height: SLOT, borderRadius: SLOT / 2 },

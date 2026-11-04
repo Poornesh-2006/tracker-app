@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { Button, Card, CardHead, Empty, Field, Row, Screen, Section, Text } from '@/components/ui';
 import { AiSheet } from '@/components/ai/AiSheet';
-import { ON_PASTEL, ON_PASTEL_MUTED, space, useTheme, type Tone } from '@/constants/theme';
+import { space, type Tone } from '@/constants/theme';
 import { useFocusData } from '@/hooks/useFocusData';
 import { calculateRecoveryScore, generateInsights, predictStress } from '@/services/ai-engine';
 import { GEMMA_OFFLINE_HINT, getHealthAdvice, isGemmaAvailable, queryGemma } from '@/services/gemma-api';
@@ -20,12 +20,10 @@ async function loadInsights() {
     insights: generateInsights({ metrics, workouts }),
     stress: predictStress(metrics),
     recovery: last ? (last.recoveryScore ?? calculateRecoveryScore(last)) : null,
-    aiOnline,
-  };
+    aiOnline };
 }
 
 export default function InsightsScreen() {
-  const { c } = useTheme();
   const { data } = useFocusData(useCallback(loadInsights, []));
   const [question, setQuestion] = useState('');
   const [ask, setAsk] = useState<{ title: string; run: () => Promise<string> } | null>(null);
@@ -47,9 +45,9 @@ export default function InsightsScreen() {
         </Card>
         <Card index={1} tone="lavender" style={{ flex: 1 }}>
           <CardHead label="Stress forecast" icon="weather-windy" tone="lavender" />
-          <Text variant="display" color={ON_PASTEL}>
+          <Text variant="display">
             {data?.stress ?? '–'}
-            <Text variant="h2" color={ON_PASTEL_MUTED}>
+            <Text variant="h2" muted>
               /10
             </Text>
           </Text>
@@ -62,10 +60,10 @@ export default function InsightsScreen() {
           const tone = LEVEL_TONE[ins.level] ?? 'sky';
           return (
             <Card key={`${ins.title}-${i}`} index={i + 2} tone={tone}>
-              <Text variant="title" color={ON_PASTEL}>
+              <Text variant="title">
                 {ins.title}
               </Text>
-              <Text variant="small" color={ON_PASTEL_MUTED}>
+              <Text variant="small" muted>
                 {ins.message}
               </Text>
             </Card>
@@ -82,7 +80,7 @@ export default function InsightsScreen() {
             <Button label="Advice from my latest check-in" kind="pink" icon="creation" disabled={!data.metrics.length} onPress={() => setAsk({ title: 'Your daily advice', run: () => getHealthAdvice(data.metrics) })} />
           </View>
         ) : (
-          <Text variant="small" color={c.onInk} style={{ opacity: 0.7 }}>
+          <Text variant="small" muted>
             {GEMMA_OFFLINE_HINT}
           </Text>
         )}

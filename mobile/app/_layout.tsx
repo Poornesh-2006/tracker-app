@@ -8,7 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFonts } from 'expo-font';
 import { Inter_400Regular, Inter_500Medium, Inter_700Bold } from '@expo-google-fonts/inter';
-import { SpaceGrotesk_500Medium, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
+import { SpaceGrotesk_300Light, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 
 import { themeFor, useThemeMode } from '@/constants/theme';
 import { DotMatrix, Text, ToastHost } from '@/components/ui';
@@ -33,6 +33,7 @@ export default function RootLayout() {
     Inter_400Regular,
     Inter_500Medium,
     Inter_700Bold,
+    SpaceGrotesk_300Light,
     SpaceGrotesk_500Medium,
     SpaceGrotesk_700Bold,
   });

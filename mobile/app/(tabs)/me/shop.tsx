@@ -2,17 +2,16 @@ import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, Card, CardHead, CountUp, Screen, Text, enter, toast } from '@/components/ui';
 import Animated from 'react-native-reanimated';
-import { ON_PASTEL, ON_PASTEL_MUTED, pastel, radii, space, useTheme } from '@/constants/theme';
+import { radii, space, useTheme } from '@/constants/theme';
 import { RANKS } from '@/constants/gamification';
 import { useFocusData } from '@/hooks/useFocusData';
 import { bumpData } from '@/hooks/useDataVersion';
 import { getShopItems, getUserRank, purchaseReward } from '@/services/gamification-service';
 
-const TONES = ['butter', 'blush', 'lavender', 'sky'] as const;
 const load = () => Promise.all([getUserRank(), getShopItems()]).then(([rank, items]) => ({ rank, items }));
 
 export default function ShopScreen() {
-  const { tone } = useTheme();
+  const { c, tone } = useTheme();
   const { data } = useFocusData(useCallback(load, []));
   const [buying, setBuying] = useState<string | null>(null);
 
@@ -36,16 +35,15 @@ export default function ShopScreen() {
       </Card>
       <View style={styles.grid}>
         {data?.items.map((item, i) => {
-          const bg = pastel[TONES[i % TONES.length]];
           const locked = !item.canBuy;
           return (
             <Animated.View key={item.id} entering={enter(i + 1)} style={styles.cell}>
-              <View style={[styles.tile, { backgroundColor: bg, opacity: locked ? 0.55 : 1 }]}>
+              <View style={[styles.tile, { backgroundColor: c.surface, opacity: locked ? 0.55 : 1 }]}>
                 <Text style={{ fontSize: 34 }}>{item.icon}</Text>
-                <Text variant="title" color={ON_PASTEL}>
+                <Text variant="title">
                   {item.name}
                 </Text>
-                <Text variant="small" color={ON_PASTEL_MUTED} numberOfLines={2}>
+                <Text variant="small" muted numberOfLines={2}>
                   {item.description}
                 </Text>
                 <Button

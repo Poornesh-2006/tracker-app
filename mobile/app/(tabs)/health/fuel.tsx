@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Bars, Button, Card, CardHead, CountUp, DayStepper, Empty, IconButton, ListItem, Meter, Ring, Row, Screen, Section, Tap, Text } from '@/components/ui';
+import { Bars, Button, Card, CardHead, CountUp, DayStepper, Empty, IconButton, ListItem, Meter, Ring, Row, Screen, Section, Tap, Text, Icon } from '@/components/ui';
 import { MealSheet } from '@/components/forms/EntrySheets';
 import { MEAL_TYPES } from '@/constants/metrics';
 import { GOALS } from '@/constants/goals';
-import { ON_PASTEL, ON_PASTEL_MUTED, space, PASTEL_TRACK, PASTEL_DIM } from '@/constants/theme';
+import { space, brand } from '@/constants/theme';
 import { useFocusData } from '@/hooks/useFocusData';
 import { askDelete, logWater } from '@/components/forms/actions';
 import { deleteHydration, listHydrationByDate } from '@/services/hydration-service';
@@ -63,13 +63,13 @@ export default function FuelScreen() {
         <CardHead label="Energy" icon="fire" tone="peach" />
         <View style={styles.hero}>
           <View style={styles.flex}>
-            <CountUp value={data?.kcal ?? 0} variant="display" color={ON_PASTEL} />
-            <Text variant="small" color={ON_PASTEL_MUTED}>
+            <CountUp value={data?.kcal ?? 0} variant="display" />
+            <Text variant="small" muted>
               of {GOALS.calories.toLocaleString()} kcal
             </Text>
           </View>
-          <Ring progress={(data?.kcal ?? 0) / GOALS.calories} color={ON_PASTEL} track={PASTEL_TRACK} size={80}>
-            <MaterialCommunityIcons name="silverware-fork-knife" size={22} color={ON_PASTEL} />
+          <Ring progress={(data?.kcal ?? 0) / GOALS.calories} size={80}>
+            <Icon name="silverware-fork-knife" size={22} />
           </Ring>
         </View>
         <View style={{ gap: space.sm, marginTop: space.md }}>
@@ -81,13 +81,13 @@ export default function FuelScreen() {
             ] as const
           ).map(([label, grams, kcalPerG]) => (
             <View key={label} style={styles.macro}>
-              <Text variant="small" color={ON_PASTEL} style={{ width: 58 }}>
+              <Text variant="small" style={{ width: 58 }}>
                 {label}
               </Text>
               <View style={styles.flex}>
-                <Meter progress={(grams * kcalPerG) / macroTotal} color={ON_PASTEL} track={PASTEL_TRACK} />
+                <Meter progress={(grams * kcalPerG) / macroTotal} />
               </View>
-              <Text variant="small" color={ON_PASTEL} style={{ width: 48, textAlign: 'right' }}>
+              <Text variant="small" style={{ width: 48, textAlign: 'right' }}>
                 {Math.round(grams)} g
               </Text>
             </View>
@@ -97,9 +97,9 @@ export default function FuelScreen() {
 
       <Card index={1} tone="sky">
         <CardHead label={`Water · ${((data?.waterMl ?? 0) / 1000).toFixed(2)} L`} icon="cup-water" tone="sky" />
-        <Text variant="display" color={ON_PASTEL}>
+        <Text variant="display">
           {glasses}
-          <Text variant="h2" color={ON_PASTEL_MUTED}>
+          <Text variant="h2" muted>
             {' '}
             of {goalGlasses} glasses
           </Text>
@@ -107,7 +107,7 @@ export default function FuelScreen() {
         <View style={styles.glasses}>
           {Array.from({ length: Math.max(goalGlasses, glasses) }, (_, i) => (
             <Tap key={i} onPress={() => void addWater(GOALS.glassMl)} scaleTo={0.8} accessibilityLabel="Add a glass of water">
-              <MaterialCommunityIcons name={i < glasses ? 'water' : 'water-plus-outline'} size={30} color={ON_PASTEL} />
+              <Icon name={i < glasses ? 'water' : 'water-outline'} size={30} color={i < glasses ? brand.orange : undefined} />
             </Tap>
           ))}
         </View>
@@ -116,14 +116,14 @@ export default function FuelScreen() {
           <Button label="+500 ml" small kind="ink" onPress={() => void addWater(500)} style={styles.flex} />
         </Row>
         {data?.water.length ? (
-          <Text variant="small" color={ON_PASTEL_MUTED} style={{ marginTop: space.sm }}>
+          <Text variant="small" muted style={{ marginTop: space.sm }}>
             Long-press an entry below to remove it.
           </Text>
         ) : null}
         <View style={styles.waterLog}>
           {data?.water.map((w) => (
             <Tap key={w.id} onLongPress={() => removeWater(w.id, w.amountMl)} style={styles.waterChip} accessibilityLabel={`${w.amountMl} ml, long-press to remove`}>
-              <Text variant="small" color={ON_PASTEL}>
+              <Text variant="small">
                 {w.amountMl} ml
               </Text>
             </Tap>
@@ -133,7 +133,7 @@ export default function FuelScreen() {
 
       <Card index={2} tone="butter">
         <CardHead label="Calories · 7 days" icon="chart-bar" tone="butter" />
-        <Bars values={data?.weekKcal ?? Array(7).fill(0)} labels={data?.weekLabels} labelColor={ON_PASTEL_MUTED} color={ON_PASTEL} dim={PASTEL_DIM} highlight={6} barWidth={14} height={80} />
+        <Bars values={data?.weekKcal ?? Array(7).fill(0)} labels={data?.weekLabels} highlight={6} barWidth={14} height={80} />
       </Card>
 
       {MEAL_TYPES.map(({ value, label }) => {

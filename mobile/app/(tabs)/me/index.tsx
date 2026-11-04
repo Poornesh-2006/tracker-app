@@ -2,15 +2,16 @@ import { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { router, type Href } from 'expo-router';
 import { Card, CardHead, CountUp, DotMatrix, IconButton, ListItem, Meter, Row, Screen, Section, Text } from '@/components/ui';
-import { ON_PASTEL, ON_PASTEL_MUTED, space, useTheme } from '@/constants/theme';
+import { space, useTheme } from '@/constants/theme';
 import { POINT_RULES, RANKS } from '@/constants/gamification';
 import { useFocusData } from '@/hooks/useFocusData';
 import { getAchievements, getLifetimePoints, getUserRank, rankForPoints } from '@/services/gamification-service';
+import { plural } from '@/utils/helpers';
 
 const load = () => Promise.all([getUserRank(), getAchievements(), getLifetimePoints()]).then(([rank, achievements, lifetime]) => ({ rank, achievements, lifetime }));
 
 export default function MeScreen() {
-  const { c, tone } = useTheme();
+  const { tone } = useTheme();
   const { data } = useFocusData(useCallback(load, []));
   const lifetime = data?.lifetime ?? 0;
   const current = rankForPoints(lifetime);
@@ -22,10 +23,10 @@ export default function MeScreen() {
     <Screen back eyebrow="You" title="Profile" right={<IconButton icon="cog-outline" label="Settings" onPress={() => router.push('/(tabs)/me/settings' as Href)} />}>
       <Card index={0} tone="ink">
         <CardHead label={`Rank ${current.level} of ${RANKS.length}`} tone="ink" right={<Text style={{ fontSize: 28 }}>{current.icon}</Text>} />
-        <DotMatrix text={current.name} dot={6} color={c.onInk} offColor="transparent" />
+        <DotMatrix text={current.name} dot={6} offColor="transparent" />
         <View style={{ marginTop: space.lg, gap: 6 }}>
           <Meter progress={progress} color={tone('ink').hi} track={tone('ink').track} height={10} />
-          <Text variant="small" color={c.onInk} style={{ opacity: 0.7 }}>
+          <Text variant="small" muted>
             {next ? `${(next.minPoints - lifetime).toLocaleString()} lifetime points to ${next.name}` : 'Top rank reached 🔥'}
           </Text>
         </View>
@@ -34,16 +35,16 @@ export default function MeScreen() {
       <Row>
         <Card index={1} tone="butter" style={styles.flex} onPress={() => router.push('/(tabs)/me/shop' as Href)} accessibilityLabel="Points, open shop">
           <CardHead label="To spend" icon="storefront-outline" tone="butter" />
-          <CountUp value={data?.rank.totalPoints ?? 0} color={ON_PASTEL} />
-          <Text variant="small" color={ON_PASTEL_MUTED}>
+          <CountUp value={data?.rank.totalPoints ?? 0} />
+          <Text variant="small" muted>
             points · open shop
           </Text>
         </Card>
         <Card index={2} tone="peach" style={styles.flex}>
           <CardHead label="Streak" icon="fire" tone="peach" />
-          <CountUp value={data?.rank.currentStreak ?? 0} color={ON_PASTEL} suffix=" d" />
-          <Text variant="small" color={ON_PASTEL_MUTED}>
-            best {data?.rank.bestStreak ?? 0} days
+          <CountUp value={data?.rank.currentStreak ?? 0} suffix=" d" />
+          <Text variant="small" muted>
+            best {plural(data?.rank.bestStreak ?? 0, 'day')}
           </Text>
         </Card>
       </Row>
@@ -61,7 +62,7 @@ export default function MeScreen() {
       <Card index={5} tone="sky">
         <CardHead label="How to earn (today’s entries only)" icon="information-outline" tone="sky" />
         {Object.entries(POINT_RULES).map(([reason, rule]) => (
-          <Text key={reason} variant="small" color={ON_PASTEL}>
+          <Text key={reason} variant="small">
             {reason[0].toUpperCase() + reason.slice(1)}: +{rule.points} × up to {rule.dailyCap}/day · ×{current.multiplier} at {current.name}
           </Text>
         ))}

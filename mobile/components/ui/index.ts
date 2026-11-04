@@ -9,3 +9,5 @@ export * from './Text';
 export * from './Toast';
 export * from './Viz';
 export * from './MonthGrid';
+export * from './CardColors';
+export * from './Icon';

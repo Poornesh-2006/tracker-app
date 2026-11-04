@@ -336,3 +336,14 @@ export async function awardPointsSafely(reason: PointReason, date: string): Prom
 
 /** Lifetime *earned* points (rank basis); spending in the shop doesn't reduce it. */
 export const getLifetimePoints = (userId = LOCAL_USER_ID) => pointsSince(userId);
+
+/** Days (YYYY-MM-DD) in [from, to] on which the user logged anything that earned points. */
+export async function activeDaysBetween(from: string, to: string, userId = LOCAL_USER_ID): Promise<string[]> {
+  const rows = await all<{ ref_date: string }>(
+    `SELECT DISTINCT ref_date FROM points_log WHERE user_id = ? AND ref_date >= ? AND ref_date <= ? ORDER BY ref_date`,
+    userId,
+    from,
+    to,
+  );
+  return rows.map((r) => r.ref_date);
+}

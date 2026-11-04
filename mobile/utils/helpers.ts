@@ -32,3 +32,6 @@ export function parseNum(s: string): number | null {
   const normalized = /^-?\d+,\d{1,2}$/.test(t) ? t.replace(',', '.') : t.replace(/,/g, '');
   return normalized === '' ? Number.NaN : Number(normalized);
 }
+
+/** "1 session" / "3 sessions". */
+export const plural = (n: number, word: string, many = `${word}s`) => `${n.toLocaleString()} ${n === 1 ? word : many}`;

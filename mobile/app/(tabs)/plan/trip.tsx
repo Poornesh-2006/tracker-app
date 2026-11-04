@@ -5,7 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Button, Card, CardHead, DotMatrix, Empty, Row, Screen, Text, toast } from '@/components/ui';
 import { askDelete, attempt } from '@/components/forms/actions';
 import { RouteMap } from '@/components/plan/RouteMap';
-import { ON_PASTEL, space, useTheme } from '@/constants/theme';
+import { space } from '@/constants/theme';
 import { useAsyncAction } from '@/hooks/useAsyncAction';
 import { useFocusData } from '@/hooks/useFocusData';
 import { deleteTrip, getTrip, googleMapsDirectionsUrl, googleMapsPinUrl, listStops, setTripStatus, upsertLiveLocation } from '@/services/travel-service';
@@ -13,7 +13,6 @@ import { formatDate } from '@/utils/dates';
 import { openLink } from '@/utils/links';
 
 export default function TripScreen() {
-  const { c } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const tripId = Number(id);
   const { data } = useFocusData(useCallback(() => Promise.all([getTrip(tripId), listStops(tripId)]), [tripId]));
@@ -108,7 +107,7 @@ export default function TripScreen() {
           icon={active ? 'navigation-variant' : 'subway-variant'}
           tone={headTone}
         />
-        <DotMatrix text={watching ? `${minutes}MIN` : `${trip.durationMin ?? '--'}MIN`} dot={6} color={active ? '#fff' : c.onInk} offColor="transparent" />
+        <DotMatrix text={watching ? `${minutes}MIN` : `${trip.durationMin ?? '--'}MIN`} dot={6} offColor="transparent" />
         <Row style={{ marginTop: space.md }}>
           {trip.status === 'planned' ? <Button label="Start trip" icon="play" kind="pink" onPress={() => void start()} loading={starting.busy} style={styles.flex} /> : null}
           {active && !watching ? <Button label="Resume" icon="play" kind="pink" onPress={() => void start()} loading={starting.busy} style={styles.flex} /> : null}
@@ -116,7 +115,7 @@ export default function TripScreen() {
         </Row>
         <Button label="Share trip" icon="share-variant" kind="inverse" onPress={share} style={{ marginTop: space.sm }} />
         {starting.error ? (
-          <Text variant="small" color={active ? '#fff' : c.onInk} style={{ marginTop: space.sm }}>
+          <Text variant="small" style={{ marginTop: space.sm }}>
             {starting.error}
           </Text>
         ) : null}
@@ -130,7 +129,7 @@ export default function TripScreen() {
       {trip.notes ? (
         <Card index={2} tone="butter">
           <CardHead label="Notes" tone="butter" />
-          <Text color={ON_PASTEL}>{trip.notes}</Text>
+          <Text>{trip.notes}</Text>
         </Card>
       ) : null}
       {coords ? (

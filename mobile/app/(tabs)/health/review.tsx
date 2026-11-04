@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Card, CardHead, Empty, ListItem, MonthGrid, Row, Screen, Text, addDot, monthOf } from '@/components/ui';
 import { MetricsSheet } from '@/components/forms/EntrySheets';
-import { ON_PASTEL, ON_PASTEL_MUTED, accent, pastel, space } from '@/constants/theme';
+import { accent, pastel, space } from '@/constants/theme';
 import { useFocusData } from '@/hooks/useFocusData';
 import { listDailyMetricsBetween } from '@/services/metrics-service';
 import { listFoodBetween } from '@/services/meal-service';
@@ -53,12 +53,12 @@ export default function ReviewScreen() {
             <Stat label="Stress" value={m.stress != null ? `${m.stress}/10` : '–'} />
           </Row>
         ) : (
-          <Text variant="small" color={ON_PASTEL_MUTED}>
+          <Text variant="small" muted>
             {day <= todayStr() ? 'Nothing logged. Tap to fill it in.' : 'Future day.'}
           </Text>
         )}
         {m?.notes ? (
-          <Text variant="small" color={ON_PASTEL_MUTED} style={{ marginTop: space.sm }}>
+          <Text variant="small" muted style={{ marginTop: space.sm }}>
             {m.notes}
           </Text>
         ) : null}
@@ -80,10 +80,10 @@ export default function ReviewScreen() {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <View>
-      <Text variant="title" color={ON_PASTEL}>
+      <Text variant="title">
         {value}
       </Text>
-      <Text variant="small" color={ON_PASTEL_MUTED}>
+      <Text variant="small" muted>
         {label}
       </Text>
     </View>

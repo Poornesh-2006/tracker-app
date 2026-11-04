@@ -5,6 +5,8 @@ import { router, type Href } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Card, Empty, IconButton, ListItem, MonthGrid, Row, Screen, Section, Segmented, Tap, Text, addDot, enter, monthOf } from '@/components/ui';
 import { TaskSheet } from '@/components/forms/EntrySheets';
+import { StreakWidget } from '@/components/widgets/StreakWidget';
+import { loadStreak } from '@/services/streak-service';
 import { accent, pastel, radii, space, useTheme } from '@/constants/theme';
 import { useFocusData } from '@/hooks/useFocusData';
 import { askDelete, attempt } from '@/components/forms/actions';
@@ -42,6 +44,7 @@ export default function PlanScreen() {
   const [taskOpen, setTaskOpen] = useState(false);
   const [showDone, setShowDone] = useState(false);
   const { data } = useFocusData(useCallback(() => loadPlan(day), [day]));
+  const { data: streak } = useFocusData(useCallback(loadStreak, []));
 
   const dots = useMemo(() => {
     const out: Record<string, string[]> = {};
@@ -81,7 +84,8 @@ export default function PlanScreen() {
 
       {view === 'day' ? (
         <>
-          <Card index={0}>
+          {streak ? <StreakWidget streak={streak.streak} week={streak.week} steps={streak.steps} goal={streak.goal} index={0} onPress={() => router.push('/(tabs)/me' as Href)} /> : null}
+          <Card index={1}>
             <MonthGrid month={month} onMonthChange={setMonth} selected={day} onSelect={setDay} dots={dots} />
           </Card>
           <Section title={day === today ? 'Today' : formatDate(day)} />

@@ -60,7 +60,7 @@ export function MonthGrid({
   return (
     <View style={{ gap: space.md }}>
       <View style={styles.head}>
-        <Text variant="h1" style={{ flex: 1 }} accessibilityRole="header">
+        <Text variant="h2" style={{ flex: 1 }} accessibilityRole="header" numberOfLines={1}>
           {title}
         </Text>
         <IconButton icon="chevron-left" label="Previous month" onPress={() => onMonthChange(shiftMonth(month, -1))} size={40} />

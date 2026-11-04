@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Card, CardHead, CountUp, Empty, IconButton, ListItem, Row, Screen, Segmented, Text } from '@/components/ui';
 import { SchemaSheet, askDelete, num, text, type FormLayout } from '@/components/forms/SchemaSheet';
-import { ON_PASTEL, ON_PASTEL_MUTED, space, useTheme } from '@/constants/theme';
+import { space, useTheme } from '@/constants/theme';
 import { useFocusData } from '@/hooks/useFocusData';
 import { addInvestment, deleteInvestment, listInvestments, summarizePortfolio } from '@/services/finance-service';
 import type { Investment } from '@/types';
@@ -39,21 +39,21 @@ export default function InvestmentsScreen() {
       <Segmented options={KINDS} value={kind} onChange={setKind} />
       <Card index={0} tone={p.pnl >= 0 ? 'sage' : 'peach'}>
         <CardHead label="Current value" icon="chart-line" tone={p.pnl >= 0 ? 'sage' : 'peach'} />
-        <CountUp value={Math.round(p.value)} variant="display" color={ON_PASTEL} prefix="₹" />
+        <CountUp value={Math.round(p.value)} variant="display" prefix="₹" />
         <Row style={{ marginTop: space.sm }}>
           <View style={styles.flex}>
-            <Text variant="small" color={ON_PASTEL_MUTED}>
+            <Text variant="small" muted>
               Invested
             </Text>
-            <Text variant="title" color={ON_PASTEL}>
+            <Text variant="title">
               {money(p.invested)}
             </Text>
           </View>
           <View style={styles.flex}>
-            <Text variant="small" color={ON_PASTEL_MUTED}>
+            <Text variant="small" muted>
               P/L
             </Text>
-            <Text variant="title" color={ON_PASTEL}>
+            <Text variant="title">
               {money(p.pnl)} ({pct >= 0 ? '+' : ''}
               {pct.toFixed(1)}%)
             </Text>
